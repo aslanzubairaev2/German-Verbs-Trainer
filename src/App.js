@@ -392,71 +392,76 @@ const GermanVerbsApp = () => {
             <GeminiInfoModal show={showGeminiModal} onClose={() => setShowGeminiModal(false)} verb={currentVerb} onFetch={fetchGeminiInfo} speak={speak} isSpeaking={isSpeaking} />
             <VerbListModal show={showVerbList} onClose={() => setShowVerbList(false)} onSelectVerb={selectVerb} verbs={allVerbs} masteredVerbs={appState.masteredVerbs} />
             <SettingsModal show={showSettings} onClose={() => setShowSettings(false)} autoPlay={autoPlay} setAutoPlay={setAutoPlay} onResetProgress={resetAllProgress} />
+            
             <div className="app-container">
                 <div className="main-card">
-                    <header className="app-header">
-                        <div className={`level-badge level-${currentLevel.toLowerCase()}`}>{currentLevel}</div>
-                        <div className="mode-toggle">
-                            <div className="toggle-group">
-                                <button onClick={() => setPracticeMode(false)} className={!practiceMode ? 'active' : ''}>Изучение</button>
-                                <button onClick={() => setPracticeMode(true)} className={practiceMode ? 'active' : ''}>Практика</button>
+                    <div className="main-card-header">
+                        <header className="app-header">
+                            <div className={`level-badge level-${currentLevel.toLowerCase()}`}>{currentLevel}</div>
+                            <div className="mode-toggle">
+                                <div className="toggle-group">
+                                    <button onClick={() => setPracticeMode(false)} className={!practiceMode ? 'active' : ''}>Изучение</button>
+                                    <button onClick={() => setPracticeMode(true)} className={practiceMode ? 'active' : ''}>Практика</button>
+                                </div>
                             </div>
-                        </div>
-                        <div className="header-icons">
-                             <button onClick={() => setShowVerbList(true)} title="Список глаголов" className="header-icon-btn"><List /></button>
-                             <button onClick={() => setShowSettings(true)} title="Настройки" className="header-icon-btn"><Settings /></button>
-                        </div>
-                    </header>
-                    
-                    <div className="verb-navigation">
-                        <button onClick={() => changeVerb(-1)} className="nav-btn"><ChevronLeft /></button>
-                        <div className="verb-display">
-                            <div className="verb-title">
-                                <h2>{currentVerb.infinitive}</h2>
-                                <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="action-btn action-btn-speak"><Volume2 size={20} /></button>
-                                <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="action-btn action-btn-gemini"><Sparkles size={20} /></button>
+                            <div className="header-icons">
+                                <button onClick={() => setShowVerbList(true)} title="Список глаголов" className="header-icon-btn"><List /></button>
+                                <button onClick={() => setShowSettings(true)} title="Настройки" className="header-icon-btn"><Settings /></button>
                             </div>
-                            <p>{currentVerb.russian}</p>
+                        </header>
+                        
+                        <div className="verb-navigation">
+                            <button onClick={() => changeVerb(-1)} className="nav-btn"><ChevronLeft /></button>
+                            <div className="verb-display">
+                                <div className="verb-title">
+                                    <h2>{currentVerb.infinitive}</h2>
+                                    <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="action-btn action-btn-speak"><Volume2 size={20} /></button>
+                                    <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="action-btn action-btn-gemini"><Sparkles size={20} /></button>
+                                </div>
+                                <p>{currentVerb.russian}</p>
+                            </div>
+                            <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
                         </div>
-                        <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
                     </div>
                     
-                    {practiceMode ? (
-                        <div className="practice-box">
-                            <div className="practice-prompt"><p>Как спрягается <strong>{currentVerb.infinitive}</strong> с местоимением <strong>{pronouns[currentPronoun].german}</strong>?</p></div>
-                            <div className="practice-input-group">
-                                <span>{pronouns[currentPronoun].german}</span>
-                                <input type="text" value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)} onKeyPress={handleKeyPress} placeholder="Форма глагола" autoFocus />
-                                <button onClick={checkAnswer} disabled={!userAnswer.trim()}><Check /></button>
+                    <div className="main-card-body">
+                        {practiceMode ? (
+                            <div className="practice-box">
+                                <div className="practice-prompt"><p>Как спрягается <strong>{currentVerb.infinitive}</strong> с местоимением <strong>{pronouns[currentPronoun].german}</strong>?</p></div>
+                                <div className="practice-input-group">
+                                    <span>{pronouns[currentPronoun].german}</span>
+                                    <input type="text" value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)} onKeyPress={handleKeyPress} placeholder="Форма глагола" autoFocus />
+                                    <button onClick={checkAnswer} disabled={!userAnswer.trim()}><Check /></button>
+                                </div>
+                                {feedback && (<div className={`feedback-box ${feedback.includes('Правильно') ? 'correct' : 'incorrect'}`}>{feedback}</div>)}
+                                <div className="hint-container">
+                                    {showHint ? (
+                                        <div className="hint-box">
+                                            {pronouns[currentPronoun].german} {currentVerb.forms[currentPronoun]}
+                                        </div>
+                                    ) : (
+                                        <button className="hint-btn" onClick={handleHint} title="Показать подсказку">
+                                            <Lightbulb size={20} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            {feedback && (<div className={`feedback-box ${feedback.includes('Правильно') ? 'correct' : 'incorrect'}`}>{feedback}</div>)}
-                            <div className="hint-container">
-                                {showHint ? (
-                                    <div className="hint-box">
-                                        {pronouns[currentPronoun].german} {currentVerb.forms[currentPronoun]}
-                                    </div>
-                                ) : (
-                                    <button className="hint-btn" onClick={handleHint} title="Показать подсказку">
-                                        <Lightbulb size={20} />
-                                    </button>
-                                )}
+                        ) : (
+                            <div className="table-container">
+                                <table>
+                                    <tbody>
+                                        {pronouns.map((pronoun, index) => (
+                                            <tr key={index}>
+                                                <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
+                                                <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
+                                                <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
-                    ) : (
-                         <div className="table-container">
-                            <table>
-                                <tbody>
-                                    {pronouns.map((pronoun, index) => (
-                                        <tr key={index}>
-                                            <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
-                                            <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
-                                            <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </>
