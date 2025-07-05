@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle } from 'lucide-react';
-import { allVerbs } from './verbsData.js'; // <-- Импорт глаголов из отдельного файла
+import { allVerbs } from './verbsData.js';
 
 // --- DATA ---
 const pronouns = [
@@ -117,14 +117,12 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
                         <div className="info-tab">
                              <h4>Основы спряжения глаголов</h4>
                             <p>В немецком, как и в русском, глаголы меняют свою форму в зависимости от того, кто выполняет действие (лицо) и когда (время). Этот процесс называется <strong>спряжением</strong>.</p>
-                            
                             <h5>Типы глаголов:</h5>
                             <ul>
                                 <li><strong>Слабые (правильные):</strong> Самая простая группа. Они спрягаются по четким правилам, добавляя стандартные окончания к основе глагола. Пример: <em>machen (делать) -> ich mach<strong>e</strong>, du mach<strong>st</strong></em>.</li>
                                 <li><strong>Сильные (неправильные):</strong> Эти глаголы "не подчиняются" общим правилам. При спряжении у них часто меняется корневая гласная. Пример: <em>sprechen (говорить) -> ich spreche, du spr<strong>i</strong>chst</em>. Их формы нужно запоминать.</li>
                                 <li><strong>Смешанные:</strong> Редкая группа, которая ведет себя как слабые глаголы (берет их окончания), но при этом меняет корневую гласную, как сильные. Пример: <em>denken (думать) -> ich dachte (в прошлом времени)</em>.</li>
                             </ul>
-
                             <h5>Стандартные окончания (для слабых глаголов):</h5>
                             <table>
                                 <tbody>
@@ -215,8 +213,8 @@ const GermanVerbsApp = () => {
     const [showGeminiModal, setShowGeminiModal] = useState(false);
 
     // --- DERIVED STATE & MEMOS ---
-    const availableVerbs = useMemo(() => allVerbs.filter(verb => appState.unlockedLevels.includes(verb.level)), [appState.unlockedLevels]);
-    const currentVerb = availableVerbs[appState.lastVerbIndex];
+    const availableVerbsForProgression = useMemo(() => allVerbs.filter(verb => appState.unlockedLevels.includes(verb.level)), [appState.unlockedLevels]);
+    const currentVerb = allVerbs[appState.lastVerbIndex];
     const currentLevel = appState.unlockedLevels[appState.unlockedLevels.length - 1];
 
     // --- EFFECTS ---
@@ -344,7 +342,7 @@ const GermanVerbsApp = () => {
     };
     
     const selectVerb = (verb) => {
-        const verbIndex = availableVerbs.findIndex(v => v.infinitive === verb.infinitive);
+        const verbIndex = allVerbs.findIndex(v => v.infinitive === verb.infinitive);
         if (verbIndex !== -1) {
             setAppState(prev => ({...prev, lastVerbIndex: verbIndex}));
             setPracticeMode(false); // Switch to study mode
@@ -358,27 +356,22 @@ const GermanVerbsApp = () => {
         window.location.reload();
     };
     
-    const nextVerb = () => {
-        let newIndex;
-        const newSequenceCounter = appState.sequenceCounter + 1;
+    const changeVerb = (direction) => {
+        const currentIndexInAvailable = availableVerbsForProgression.findIndex(v => v.infinitive === currentVerb.infinitive);
+        let nextIndexInAvailable;
 
-        if (newSequenceCounter % REPETITION_INTERVAL === 0 && appState.lastVerbIndex > 0) {
-            const seenVerbsCount = appState.lastVerbIndex;
-            newIndex = Math.floor(Math.random() * seenVerbsCount);
-        } else {
-            newIndex = (appState.lastVerbIndex + 1) % availableVerbs.length;
+        if (direction === 1) { // next
+             nextIndexInAvailable = (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
+        } else { // prev
+             nextIndexInAvailable = (currentIndexInAvailable - 1 + availableVerbsForProgression.length) % availableVerbsForProgression.length;
         }
 
-        setAppState(prev => ({...prev, lastVerbIndex: newIndex, sequenceCounter: newSequenceCounter }));
-        resetVerbState();
-        if (autoPlay) { setTimeout(() => speak(availableVerbs[newIndex].infinitive), 100); }
-    };
+        const nextVerbInfinitive = availableVerbsForProgression[nextIndexInAvailable].infinitive;
+        const newMasterIndex = allVerbs.findIndex(v => v.infinitive === nextVerbInfinitive);
 
-    const prevVerb = () => {
-        const newIndex = (appState.lastVerbIndex - 1 + availableVerbs.length) % availableVerbs.length;
-        setAppState(prev => ({...prev, lastVerbIndex: newIndex, sequenceCounter: prev.sequenceCounter + 1 }));
+        setAppState(prev => ({...prev, lastVerbIndex: newMasterIndex}));
         resetVerbState();
-        if (autoPlay) { setTimeout(() => speak(availableVerbs[newIndex].infinitive), 100); }
+        if (autoPlay) { setTimeout(() => speak(allVerbs[newMasterIndex].infinitive), 100); }
     };
     
     const handleKeyPress = (e) => { if (e.key === 'Enter' && userAnswer.trim()) checkAnswer(); };
@@ -397,7 +390,7 @@ const GermanVerbsApp = () => {
         <>
             <LevelUpToast message={levelUpMessage} onDismiss={() => setLevelUpMessage('')} />
             <GeminiInfoModal show={showGeminiModal} onClose={() => setShowGeminiModal(false)} verb={currentVerb} onFetch={fetchGeminiInfo} speak={speak} isSpeaking={isSpeaking} />
-            <VerbListModal show={showVerbList} onClose={() => setShowVerbList(false)} onSelectVerb={selectVerb} verbs={availableVerbs} masteredVerbs={appState.masteredVerbs} />
+            <VerbListModal show={showVerbList} onClose={() => setShowVerbList(false)} onSelectVerb={selectVerb} verbs={allVerbs} masteredVerbs={appState.masteredVerbs} />
             <SettingsModal show={showSettings} onClose={() => setShowSettings(false)} autoPlay={autoPlay} setAutoPlay={setAutoPlay} onResetProgress={resetAllProgress} />
             <div className="app-container">
                 <div className="main-card">
@@ -416,7 +409,7 @@ const GermanVerbsApp = () => {
                     </header>
                     
                     <div className="verb-navigation">
-                        <button onClick={prevVerb} className="nav-btn"><ChevronLeft /></button>
+                        <button onClick={() => changeVerb(-1)} className="nav-btn"><ChevronLeft /></button>
                         <div className="verb-display">
                             <div className="verb-title">
                                 <h2>{currentVerb.infinitive}</h2>
@@ -425,7 +418,7 @@ const GermanVerbsApp = () => {
                             </div>
                             <p>{currentVerb.russian}</p>
                         </div>
-                        <button onClick={nextVerb} className="nav-btn"><ChevronRight /></button>
+                        <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
                     </div>
                     
                     {practiceMode ? (
