@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle } from 'lucide-react';
-import { allVerbs } from './verbsData.js'; // <-- ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ!
+import { allVerbs } from './verbsData.js'; // <-- Импорт глаголов из отдельного файла
 
 // --- DATA ---
 const pronouns = [
@@ -9,8 +9,6 @@ const pronouns = [
     { german: 'wir', russian: 'мы' }, { german: 'ihr', russian: 'вы' },
     { german: 'sie', russian: 'они' }, { german: 'Sie', russian: 'Вы (вежл.)' }
 ];
-
-// <-- МАССИВ allVerbs УДАЛЕН ОТСЮДА
 
 const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2'];
 const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };

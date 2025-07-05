@@ -1,4 +1,7 @@
-const allVerbs = [
+// Этот файл теперь хранит все глаголы.
+// Если вы захотите добавить новые, вы будете редактировать только этот файл.
+
+export const allVerbs = [
     // A1
     { infinitive: 'sein', russian: 'быть', level: 'A1', forms: ['bin', 'bist', 'ist', 'ist', 'ist', 'sind', 'seid', 'sind', 'sind'] },
     { infinitive: 'haben', russian: 'иметь', level: 'A1', forms: ['habe', 'hast', 'hat', 'hat', 'hat', 'haben', 'habt', 'haben', 'haben'] },
@@ -27,7 +30,7 @@ const allVerbs = [
     { infinitive: 'glauben', russian: 'верить', level: 'A1', forms: ['glaube', 'glaubst', 'glaubt', 'glaubt', 'glaubt', 'glauben', 'glaubt', 'glauben', 'glauben'] },
     { infinitive: 'helfen', russian: 'помогать', level: 'A1', forms: ['helfe', 'hilfst', 'hilft', 'hilft', 'hilft', 'helfen', 'helft', 'helfen', 'helfen'] },
     { infinitive: 'kaufen', russian: 'покупать', level: 'A1', forms: ['kaufe', 'kaufst', 'kauft', 'kauft', 'kauft', 'kaufen', 'kauft', 'kaufen', 'kaufen'] },
-    { infinitive: 'lernen', russian: 'учить', level: 'A1', forms: ['lerne', 'lernst', 'lernt', 'lernt', 'lernt', 'lernen', 'lernt', 'lernen', 'lernen'] },
+    { infinitive: 'lernen', russian: 'учиться', level: 'A1', forms: ['lerne', 'lernst', 'lernt', 'lernt', 'lernt', 'lernen', 'lernt', 'lernen', 'lernen'] },
     { infinitive: 'lesen', russian: 'читать', level: 'A1', forms: ['lese', 'liest', 'liest', 'liest', 'liest', 'lesen', 'lest', 'lesen', 'lesen'] },
     { infinitive: 'schlafen', russian: 'спать', level: 'A1', forms: ['schlafe', 'schläfst', 'schläft', 'schläft', 'schläft', 'schlafen', 'schlaft', 'schlafen', 'schlafen'] },
     { infinitive: 'schreiben', russian: 'писать', level: 'A1', forms: ['schreibe', 'schreibst', 'schreibt', 'schreibt', 'schreibt', 'schreiben', 'schreibt', 'schreiben', 'schreiben'] },
@@ -74,7 +77,6 @@ const allVerbs = [
     { infinitive: 'empfehlen', russian: 'рекомендовать', level: 'B1', forms: ['empfehle', 'empfiehlst', 'empfiehlt', 'empfiehlt', 'empfiehlt', 'empfehlen', 'empfehlt', 'empfehlen', 'empfehlen'] },
     { infinitive: 'genießen', russian: 'наслаждаться', level: 'B1', forms: ['genieße', 'genießt', 'genießt', 'genießt', 'genießt', 'genießen', 'genießt', 'genießen', 'genießen'] },
     { infinitive: 'heiraten', russian: 'жениться', level: 'B1', forms: ['heirate', 'heiratest', 'heiratet', 'heiratet', 'heiratet', 'heiraten', 'heiratet', 'heiraten', 'heiraten'] },
-    { infinitive: 'hoffen', russian: 'надеяться', level: 'B1', forms: ['hoffe', 'hoffst', 'hofft', 'hofft', 'hofft', 'hoffen', 'hofft', 'hoffen', 'hoffen'] },
     { infinitive: 'informieren', russian: 'информировать', level: 'B1', forms: ['informiere', 'informierst', 'informiert', 'informiert', 'informiert', 'informieren', 'informiert', 'informieren', 'informieren'] },
     { infinitive: 'interessieren', russian: 'интересовать', level: 'B1', forms: ['interessiere', 'interessierst', 'interessiert', 'interessiert', 'interessiert', 'interessieren', 'interessiert', 'interessieren', 'interessieren'] },
     { infinitive: 'teilnehmen', russian: 'участвовать', level: 'B1', forms: ['nehme teil', 'nimmst teil', 'nimmt teil', 'nimmt teil', 'nimmt teil', 'nehmen teil', 'nehmt teil', 'nehmen teil', 'nehmen teil'] },
