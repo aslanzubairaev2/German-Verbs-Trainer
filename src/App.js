@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown, PlusCircle, MinusCircle } from 'lucide-react';
 import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
@@ -142,14 +142,25 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
     );
 };
 
-const ConjugationTable = ({ forms }) => {
+const ConjugationTable = ({ forms, speak, isSpeaking }) => {
     if (!forms) return <p>Нет данных для таблицы.</p>;
 
     const tenses = [
-        { key: 'present', name: 'Настоящее' },
-        { key: 'past', name: 'Прошедшее' },
-        { key: 'future', name: 'Будущее' },
+        { key: 'present', name: 'Наст.' },
+        { key: 'past', name: 'Прош.' },
+        { key: 'future', name: 'Будущ.' },
     ];
+
+    const renderCellContent = (text) => {
+        if (!text || text === '-') return '-';
+        const cleanText = text.replace(/<b>/g, '').replace(/<\/b>/g, '');
+        return (
+            <div className="table-cell-content">
+                <span dangerouslySetInnerHTML={{ __html: text }} />
+                <button onClick={(e) => { e.stopPropagation(); speak(cleanText); }} disabled={isSpeaking} className="speak-btn-tiny"><Volume2 size={14} /></button>
+            </div>
+        );
+    };
 
     return (
         <div className="conjugation-table-wrapper">
@@ -157,18 +168,18 @@ const ConjugationTable = ({ forms }) => {
                 <thead>
                     <tr>
                         <th>Время</th>
-                        <th>Утверждение (+)</th>
-                        <th>Отрицание (-)</th>
-                        <th>Вопрос (?)</th>
+                        <th><PlusCircle size={16} title="Утверждение"/></th>
+                        <th><MinusCircle size={16} title="Отрицание"/></th>
+                        <th><HelpCircle size={16} title="Вопрос"/></th>
                     </tr>
                 </thead>
                 <tbody>
                     {tenses.map(tense => (
                         <tr key={tense.key}>
                             <td>{tense.name}</td>
-                            <td>{forms[tense.key]?.affirmative || '-'}</td>
-                            <td>{forms[tense.key]?.negative || '-'}</td>
-                            <td>{forms[tense.key]?.question || '-'}</td>
+                            <td>{renderCellContent(forms[tense.key]?.affirmative)}</td>
+                            <td>{renderCellContent(forms[tense.key]?.negative)}</td>
+                            <td>{renderCellContent(forms[tense.key]?.question)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -214,22 +225,21 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                         {geminiInfo.data.examples.map((ex, i) => {
                             if (!ex || !ex.german_initial || !ex.russian) return null;
                             const isActive = activeIndex === i;
+                            const cleanInitial = ex.german_initial.replace(/<b>/g, '').replace(/<\/b>/g, '');
                             return (
                                 <li key={i} className="accordion-item">
                                     <div className="accordion-header" onClick={() => handleToggle(i)}>
                                         <div className="accordion-title">
-                                            <p className="example-german">
-                                                <strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german_initial}
-                                            </p>
+                                            <p className="example-german" dangerouslySetInnerHTML={{ __html: `<strong class="pronoun-tag">${ex.pronoun}</strong> ${ex.german_initial}` }} />
                                             <p className="example-russian">{ex.russian}</p>
                                         </div>
                                         <div className="accordion-controls">
-                                             <button onClick={(e) => { e.stopPropagation(); speak(ex.german_initial); }} disabled={isSpeaking} className="speak-btn-small"><Volume2 size={18} /></button>
+                                             <button onClick={(e) => { e.stopPropagation(); speak(cleanInitial); }} disabled={isSpeaking} className="speak-btn-small"><Volume2 size={18} /></button>
                                              <ChevronDown className={`accordion-icon ${isActive ? 'active' : ''}`} />
                                         </div>
                                     </div>
                                     <div className={`accordion-content ${isActive ? 'active' : ''}`}>
-                                        {isActive && <ConjugationTable forms={ex.forms} />}
+                                        {isActive && <ConjugationTable forms={ex.forms} speak={speak} isSpeaking={isSpeaking} />}
                                     </div>
                                 </li>
                             );
@@ -329,11 +339,9 @@ function GermanVerbsApp() {
         }
         setter({ loading: true, data: null, error: null });
         
-        // ВАЖНО: Вставьте ваш API ключ сюда.
-        // В реальном приложении этот ключ должен быть на сервере для безопасности.
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY; // <-- ВСТАВЬТЕ ВАШ API КЛЮЧ ЗДЕСЬ
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY; // <-- ВАШ КЛЮЧ ПОДКЛЮЧАЕТСЯ ЗДЕСЬ
         if (!apiKey) {
-            setter({ loading: false, data: null, error: "API ключ не настроен. Вставьте его в код App.js." });
+            setter({ loading: false, data: null, error: "API ключ не настроен в файле .env" });
             return;
         }
         
@@ -344,11 +352,11 @@ function GermanVerbsApp() {
 
           Каждый элемент в массиве "examples" должен быть объектом со следующей структурой:
           1. "pronoun": "ich" (например)
-          2. "german_initial": "простое предложение в настоящем времени"
+          2. "german_initial": "простое предложение в настоящем времени, где глагол обернут в теги <b></b>"
           3. "russian": "полный перевод этого предложения"
           4. "forms": вложенный объект, содержащий 3 времени (present, past, future).
 
-          Структура объекта "forms" должна быть такой:
+          Структура объекта "forms" должна быть такой, с глаголами в тегах <b></b>:
           - "present": { "question": "...", "affirmative": "...", "negative": "..." }
           - "past": { "question": "...", "affirmative": "...", "negative": "..." } (используй Perfekt)
           - "future": { "question": "...", "affirmative": "...", "negative": "..." } (используй Futur I)
@@ -356,12 +364,12 @@ function GermanVerbsApp() {
           Пример для "ich mache":
           {
             "pronoun": "ich",
-            "german_initial": "Ich mache meine Hausaufgaben.",
+            "german_initial": "Ich <b>mache</b> meine Hausaufgaben.",
             "russian": "Я делаю свою домашнюю работу.",
             "forms": {
-              "present": { "question": "Mache ich meine Hausaufgaben?", "affirmative": "Ich mache meine Hausaufgaben.", "negative": "Ich mache meine Hausaufgaben nicht." },
-              "past": { "question": "Habe ich meine Hausaufgaben gemacht?", "affirmative": "Ich habe meine Hausaufgaben gemacht.", "negative": "Ich habe meine Hausaufgaben nicht gemacht." },
-              "future": { "question": "Werde ich meine Hausaufgaben machen?", "affirmative": "Ich werde meine Hausaufgaben machen.", "negative": "Ich werde meine Hausaufgaben nicht machen." }
+              "present": { "question": "<b>Mache</b> ich meine Hausaufgaben?", "affirmative": "Ich <b>mache</b> meine Hausaufgaben.", "negative": "Ich <b>mache</b> meine Hausaufgaben nicht." },
+              "past": { "question": "<b>Habe</b> ich meine Hausaufgaben <b>gemacht</b>?", "affirmative": "Ich <b>habe</b> meine Hausaufgaben <b>gemacht</b>.", "negative": "Ich <b>habe</b> meine Hausaufgaben nicht <b>gemacht</b>." },
+              "future": { "question": "<b>Werde</b> ich meine Hausaufgaben <b>machen</b>?", "affirmative": "Ich <b>werde</b> meine Hausaufgaben <b>machen</b>.", "negative": "Ich <b>werde</b> meine Hausaufgaben nicht <b>machen</b>." }
             }
           }
           Создай полный JSON с такой структурой для всех местоимений.
@@ -800,7 +808,7 @@ function GermanVerbsApp() {
                 .modal-overlay {
                     position: fixed; inset: 0; background-color: var(--black-t60);
                     display: flex; align-items: center; justify-content: center;
-                    z-index: 50; padding: 1rem; animation: fadeIn 0.3s ease;
+                    z-index: 50; padding: 0.5rem; animation: fadeIn 0.3s ease;
                 }
                 .modal-content {
                     background-color: var(--white); border-radius: 0.75rem; max-width: 512px; width: 100%;
@@ -813,19 +821,19 @@ function GermanVerbsApp() {
                     color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
-                .modal-title { font-size: 1.25rem; font-weight: 600; padding: 1.5rem 1.5rem 0 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+                .modal-title { font-size: 1.125rem; font-weight: 600; padding: 1rem 1rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
                 .icon-purple { color: var(--purple-500); }
-                .modal-body-container { padding: 1.5rem; overflow-y: auto; min-height: 250px; }
+                .modal-body-container { padding: 1rem; overflow-y: auto; min-height: 250px; }
                 .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                .gemini-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 1.5rem 0 1.5rem; }
+                .gemini-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem 0 1rem; }
                 .gemini-modal-header .modal-title { padding: 0; }
                 .regenerate-btn { padding: 0.5rem; color: var(--gray-500); border-radius: 50%; }
                 .regenerate-btn:hover { background-color: var(--gray-100); color: var(--gray-800); }
                 .regenerate-btn .animate-spin { animation: spin 1s linear infinite; }
-                .gemini-data h4 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
-                .info-box-indigo { background-color: #eef2ff; color: #3730a3; padding: 0.75rem; border-radius: 0.5rem; font-weight: 500; }
+                .gemini-data h4 { font-size: 1rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem; }
+                .info-box-indigo { background-color: #eef2ff; color: #3730a3; padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-weight: 500; font-size: 0.875rem; }
                 
                 /* --- Settings/Info Modal --- */
                 .settings-tabs { display: flex; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem 0 1.5rem; }
@@ -845,22 +853,23 @@ function GermanVerbsApp() {
 
                 /* --- Verb List Modal --- */
                 .verb-list-modal .modal-body-container { padding: 0; }
-                .verb-list-header { padding: 1.5rem 1.5rem 1rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
-                .search-bar { position: relative; margin-top: 1rem; }
+                .verb-list-header { padding: 1rem 1rem 0.75rem 1rem; border-bottom: 1px solid var(--gray-200); }
+                .verb-list-header .modal-title { padding: 0 0 0.75rem 0; }
+                .search-bar { position: relative; }
                 .search-bar svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
                 .search-bar input {
-                    width: 100%; box-sizing: border-box; padding: 0.75rem 1rem 0.75rem 2.5rem;
+                    width: 100%; box-sizing: border-box; padding: 0.6rem 1rem 0.6rem 2.5rem;
                     border: 1px solid var(--gray-200); border-radius: 0.5rem; font-size: 1rem;
                 }
                 .search-bar input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
-                .verb-list-modal .modal-body-container { padding: 1rem; }
+                .verb-list-modal .modal-body-container { padding: 0.5rem; }
                 .level-header {
-                    font-size: 1rem; font-weight: 600; color: var(--gray-500);
-                    padding: 1rem 0.5rem 0.5rem; position: sticky; top: 0;
+                    font-size: 0.875rem; font-weight: 600; color: var(--gray-500);
+                    padding: 0.75rem 0.5rem 0.25rem; position: sticky; top: 0;
                     background-color: var(--white);
                 }
                 .verb-list { list-style: none; padding: 0; margin: 0; }
-                .verb-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; border-radius: 0.375rem; cursor: pointer; }
+                .verb-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.5rem; border-radius: 0.375rem; cursor: pointer; }
                 .verb-list li:hover { background-color: var(--blue-50); }
                 .verb-translation { color: var(--gray-500); font-size: 0.875rem; margin-left: 0.5rem; }
                 .check-mark { color: var(--green-500); }
@@ -868,7 +877,7 @@ function GermanVerbsApp() {
                 .error-box { background-color: var(--red-100); color: var(--red-700); padding: 1rem; border-radius: 0.5rem; text-align: center;}
 
                 /* Reset Progress */
-                .reset-section { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
+                .reset-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
                 .reset-section h4 { font-weight: 600; color: var(--red-700); }
                 .reset-section p { font-size: 0.875rem; color: var(--gray-500); }
                 .reset-btn-initial, .reset-btn-confirm { width: 100%; padding: 0.75rem; border-radius: 0.5rem; color: var(--white); font-weight: 600; margin-top: 0.5rem; }
@@ -893,27 +902,32 @@ function GermanVerbsApp() {
                 @keyframes bounce-in { 0% { opacity: 0; transform: scale(0.5) translateY(-50px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
                 /* --- Стили для аккордеона в модальном окне --- */
-                .accordion-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+                .accordion-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
                 .accordion-item { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--gray-200); }
-                .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; cursor: pointer; user-select: none; }
+                .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; cursor: pointer; user-select: none; }
                 .accordion-header:hover { background-color: var(--blue-100); }
-                .accordion-title .example-german { font-weight: 600; color: var(--blue-700); margin: 0; }
+                .accordion-title .example-german { font-weight: 500; color: var(--gray-800); margin: 0; font-size: 0.9rem; }
                 .pronoun-tag { background-color: var(--blue-100); color: var(--blue-700); padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem; margin-right: 0.5rem; }
-                .accordion-title .example-russian { font-size: 0.875rem; font-style: italic; color: var(--gray-500); margin: 0.25rem 0 0; }
-                .accordion-controls { display: flex; align-items: center; gap: 0.5rem; }
+                .accordion-title .example-russian { font-size: 0.8rem; font-style: italic; color: var(--gray-500); margin: 0.1rem 0 0; }
+                .accordion-controls { display: flex; align-items: center; gap: 0.25rem; }
                 .speak-btn-small { padding: 0.25rem; color: var(--gray-500); border-radius: 50%; }
                 .speak-btn-small:hover { background-color: rgba(0,0,0,0.05); }
                 .accordion-icon { transition: transform 0.3s ease-in-out; color: var(--gray-500); }
                 .accordion-icon.active { transform: rotate(180deg); }
-                .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 1rem; }
-                .accordion-content.active { max-height: 500px; padding: 0 1rem 1rem; }
+                .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 0.5rem; }
+                .accordion-content.active { max-height: 500px; padding: 0.5rem; }
+                .example-german b { color: var(--blue-600); font-weight: 700; }
 
                 /* --- Стили для компактной таблицы --- */
-                .conjugation-table-wrapper { background-color: var(--white); border-radius: 0.375rem; padding: 0.5rem; margin-top: 0.5rem; border: 1px solid var(--gray-200); }
-                .conjugation-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-                .conjugation-table th, .conjugation-table td { border: 1px solid var(--gray-200); padding: 0.5rem; text-align: left; vertical-align: top; }
-                .conjugation-table th { background-color: var(--gray-100); font-weight: 600; }
+                .conjugation-table-wrapper { background-color: var(--white); border-radius: 0.375rem; margin-top: 0.25rem; border: 1px solid var(--gray-200); overflow-x: auto; }
+                .conjugation-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
+                .conjugation-table th, .conjugation-table td { border: 1px solid var(--gray-200); padding: 0.4rem 0.6rem; text-align: left; vertical-align: middle; }
+                .conjugation-table th { background-color: var(--gray-100); font-weight: 600; text-align: center; }
                 .conjugation-table td:first-child { font-weight: 500; color: var(--gray-600); }
+                .conjugation-table td b { color: var(--blue-600); font-weight: 700; }
+                .table-cell-content { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+                .speak-btn-tiny { color: var(--gray-400); padding: 0.1rem; border-radius: 50%; flex-shrink: 0; }
+                .speak-btn-tiny:hover { color: var(--gray-800); background-color: var(--gray-100); }
             `}</style>
         </>
     );
