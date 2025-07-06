@@ -76,6 +76,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .main-card-body {
   flex-grow: 1;
   overflow-y: auto;
+  /* Custom Scrollbar */
   scrollbar-width: thin;
   scrollbar-color: var(--gray-200) transparent;
 }
@@ -317,10 +318,40 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+.gemini-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 1.5rem 0 1.5rem;
+}
+.gemini-modal-header .modal-title {
+  padding: 0;
+}
+.regenerate-btn {
+  padding: 0.5rem;
+  color: var(--gray-500);
+  border-radius: 50%;
+}
+.regenerate-btn:hover {
+  background-color: var(--gray-100);
+  color: var(--gray-800);
+}
+.regenerate-btn .animate-spin {
+  animation: spin 1s linear infinite;
+}
+
 .gemini-data h4 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
 .gemini-data ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .example-item { background-color: var(--blue-50); padding: 0.75rem; border-radius: 0.5rem; }
 .example-german { display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: var(--blue-700); }
+.pronoun-tag {
+  background-color: var(--blue-100);
+  color: var(--blue-700);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  margin-right: 0.5rem;
+}
 .example-russian { font-size: 0.875rem; font-style: italic; color: var(--gray-500); margin-top: 0.25rem; }
 .info-box-indigo { background-color: #eef2ff; color: #3730a3; padding: 0.75rem; border-radius: 0.5rem; font-weight: 500; }
 .info-box-blue { background-color: var(--blue-50); padding: 0.75rem; border-radius: 0.5rem; }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw } from 'lucide-react';
 import { allVerbs } from './verbsData.js';
 
 // --- DATA ---
@@ -145,27 +145,45 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
 
 const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) => {
     const [geminiInfo, setGeminiInfo] = useState({ loading: false, data: null, error: null });
+    
+    const handleFetch = useCallback((force = false) => {
+        onFetch(verb, setGeminiInfo, force);
+    }, [verb, onFetch]);
 
     useEffect(() => {
         if (show) {
-            onFetch(verb, setGeminiInfo);
+            handleFetch(false); // Fetch from cache first
         }
-    }, [show, verb, onFetch]);
+    }, [show, handleFetch]);
 
     if (!show) return null;
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button onClick={onClose} className="modal-close-btn"><X /></button>
-                <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
+                <div className="gemini-modal-header">
+                    <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
+                    <button className="regenerate-btn" onClick={() => handleFetch(true)} disabled={geminiInfo.loading} title="Сгенерировать новые примеры">
+                        <RefreshCw size={18} className={geminiInfo.loading ? 'animate-spin' : ''} />
+                    </button>
+                </div>
                 <div className="modal-body-container">
                     {geminiInfo.loading && <div className="loader-container"><LoaderCircle className="loader" /><p>Gemini генерирует информацию...</p></div>}
                     {geminiInfo.error && <div className="error-box">{geminiInfo.error}</div>}
                     {geminiInfo.data && (
                         <div className="gemini-data">
-                            {geminiInfo.data.verb_type && <div><h4>Тип глагола:</h4><p className="info-box-indigo">{geminiInfo.data.verb_type}</p></div>}
-                            <div><h4>Примеры:</h4><ul>{geminiInfo.data.examples.map((ex, i) => <li key={i} className="example-item"><div className="example-german"><p>{ex.german}</p><button onClick={() => speak(ex.german)} disabled={isSpeaking}><Volume2 /></button></div><p className="example-russian">{ex.russian}</p></li>)}</ul></div>
-                            <div><h4>Интересный факт:</h4><p className="info-box-blue">{geminiInfo.data.fact}</p></div>
+                            <div><h4>Примеры спряжения:</h4>
+                                <ul>{geminiInfo.data.examples.map((ex, i) => 
+                                    <li key={i} className="example-item pronoun-example">
+                                        <div className="example-german">
+                                            <p><strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german}</p>
+                                            <button onClick={() => speak(`${ex.pronoun} ${ex.german}`)} disabled={isSpeaking}><Volume2 /></button>
+                                        </div>
+                                        <p className="example-russian">{ex.russian}</p>
+                                    </li>
+                                )}</ul>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -240,8 +258,8 @@ const GermanVerbsApp = () => {
         window.speechSynthesis.speak(utterance);
     }, [audioReady]);
 
-    const fetchGeminiInfo = useCallback(async (verb, setter) => {
-        if (geminiDataCache[verb.infinitive]) {
+    const fetchGeminiInfo = useCallback(async (verb, setter, force = false) => {
+        if (geminiDataCache[verb.infinitive] && !force) {
             setter({ loading: false, data: geminiDataCache[verb.infinitive], error: null });
             return;
         }
@@ -251,13 +269,14 @@ const GermanVerbsApp = () => {
             setter({ loading: false, data: null, error: "API ключ не настроен." });
             return;
         }
-        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}): 1. Укажи его тип (слабый, сильный или смешанный). 2. Создай 3 простых примера предложений в настоящем времени. Для каждого предложения предоставь перевод на русский. 3. Добавь один интересный факт об этом глаголе на русском языке. Ответ дай в формате JSON, соответствующем этой схеме: { "type": "object", "properties": { "verb_type": { "type": "string" }, "examples": { "type": "array", "items": { "type": "object", "properties": { "german": { "type": "string" }, "russian": { "type": "string" } } } }, "fact": { "type": "string" } } }`;
+        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай массив примеров предложений, по одному для каждого местоимения: ich, du, er, sie, es, wir, ihr, sie, Sie. Каждый элемент массива должен быть объектом с полями "pronoun", "german" (только часть предложения без местоимения) и "russian" (полный перевод предложения). Ответ дай в формате JSON.`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const result = await response.json();
+            // The API now directly returns a JSON object in the text field
             const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
             setGeminiDataCache(prev => ({...prev, [verb.infinitive]: parsedJson}));
             setter({ loading: false, data: parsedJson, error: null });
