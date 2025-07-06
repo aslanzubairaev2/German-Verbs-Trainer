@@ -171,7 +171,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                 <div className="modal-body-container">
                     {geminiInfo.loading && <div className="loader-container"><LoaderCircle className="loader" /><p>Gemini генерирует информацию...</p></div>}
                     {geminiInfo.error && <div className="error-box">{geminiInfo.error}</div>}
-                    {geminiInfo.data && (
+                    {geminiInfo.data && geminiInfo.data.examples && Array.isArray(geminiInfo.data.examples) && (
                         <div className="gemini-data">
                             <div><h4>Примеры спряжения:</h4>
                                 <ul>{geminiInfo.data.examples.map((ex, i) => 
@@ -269,14 +269,13 @@ const GermanVerbsApp = () => {
             setter({ loading: false, data: null, error: "API ключ не настроен." });
             return;
         }
-        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай массив примеров предложений, по одному для каждого местоимения: ich, du, er, sie, es, wir, ihr, sie, Sie. Каждый элемент массива должен быть объектом с полями "pronoun", "german" (только часть предложения без местоимения) и "russian" (полный перевод предложения). Ответ дай в формате JSON.`;
+        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай JSON объект. Этот объект должен содержать ключ "examples", значением которого является массив примеров предложений. Создай по одному примеру для каждого местоимения: ich, du, er, sie, es, wir, ihr, sie, Sie. Каждый элемент в массиве "examples" должен быть объектом с полями "pronoun", "german" (только часть предложения без местоимения) и "russian" (полный перевод предложения).`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const result = await response.json();
-            // The API now directly returns a JSON object in the text field
             const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
             setGeminiDataCache(prev => ({...prev, [verb.infinitive]: parsedJson}));
             setter({ loading: false, data: parsedJson, error: null });
