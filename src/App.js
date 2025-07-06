@@ -158,6 +158,33 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
 
     if (!show) return null;
 
+    let content;
+    if (geminiInfo.loading) {
+        content = <div className="loader-container"><LoaderCircle className="loader" /><p>Gemini генерирует информацию...</p></div>;
+    } else if (geminiInfo.error) {
+        content = <div className="error-box">{geminiInfo.error}</div>;
+    } else if (geminiInfo.data && geminiInfo.data.examples && Array.isArray(geminiInfo.data.examples)) {
+        content = (
+            <div className="gemini-data">
+                <div><h4>Примеры спряжения:</h4>
+                    <ul>{geminiInfo.data.examples.map((ex, i) => 
+                        (ex && ex.pronoun && ex.german && ex.russian) ? (
+                        <li key={i} className="example-item pronoun-example">
+                            <div className="example-german">
+                                <p><strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german}</p>
+                                <button onClick={() => speak(`${ex.pronoun} ${ex.german}`)} disabled={isSpeaking}><Volume2 /></button>
+                            </div>
+                            <p className="example-russian">{ex.russian}</p>
+                        </li>
+                        ) : null
+                    )}</ul>
+                </div>
+            </div>
+        );
+    } else if (geminiInfo.data) {
+        content = <div className="error-box">Получены некорректные данные. Попробуйте сгенерировать снова.</div>;
+    }
+
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -169,25 +196,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                     </button>
                 </div>
                 <div className="modal-body-container">
-                    {geminiInfo.loading && <div className="loader-container"><LoaderCircle className="loader" /><p>Gemini генерирует информацию...</p></div>}
-                    {geminiInfo.error && <div className="error-box">{geminiInfo.error}</div>}
-                    {geminiInfo.data && geminiInfo.data.examples && Array.isArray(geminiInfo.data.examples) && (
-                        <div className="gemini-data">
-                            <div><h4>Примеры спряжения:</h4>
-                                <ul>{geminiInfo.data.examples.map((ex, i) => 
-                                    (ex && ex.pronoun && ex.german && ex.russian) ? (
-                                    <li key={i} className="example-item pronoun-example">
-                                        <div className="example-german">
-                                            <p><strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german}</p>
-                                            <button onClick={() => speak(`${ex.pronoun} ${ex.german}`)} disabled={isSpeaking}><Volume2 /></button>
-                                        </div>
-                                        <p className="example-russian">{ex.russian}</p>
-                                    </li>
-                                    ) : null
-                                )}</ul>
-                            </div>
-                        </div>
-                    )}
+                    {content}
                 </div>
             </div>
         </div>
@@ -278,11 +287,29 @@ const GermanVerbsApp = () => {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const result = await response.json();
-            const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+            
+            if (!result.candidates || !result.candidates[0].content.parts[0]) {
+                throw new Error("Пустой ответ от Gemini.");
+            }
+    
+            let text = result.candidates[0].content.parts[0].text;
+            
+            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch && jsonMatch[1]) {
+                text = jsonMatch[1];
+            }
+    
+            const parsedJson = JSON.parse(text);
+    
+            if (!parsedJson.examples || !Array.isArray(parsedJson.examples)) {
+                throw new Error("Некорректный формат данных от Gemini.");
+            }
+
             setGeminiDataCache(prev => ({...prev, [verb.infinitive]: parsedJson}));
             setter({ loading: false, data: parsedJson, error: null });
         } catch (error) {
-            setter({ loading: false, data: null, error: "Не удалось получить данные от Gemini." });
+            console.error("Fetch Gemini Info Error:", error);
+            setter({ loading: false, data: null, error: error.message || "Не удалось получить данные от Gemini." });
         }
     }, [geminiDataCache]);
 
@@ -418,7 +445,7 @@ const GermanVerbsApp = () => {
     return (
         <>
             <LevelUpToast message={levelUpMessage} onDismiss={() => setLevelUpMessage('')} />
-            <GeminiInfoModal show={showGeminiModal} onClose={() => setShowGeminiModal(false)} verb={currentVerb} onFetch={fetchGeminiInfo} speak={speak} isSpeaking={isSpeaking} />
+            <GeminiInfoModal key={currentVerb.infinitive} show={showGeminiModal} onClose={() => setShowGeminiModal(false)} verb={currentVerb} onFetch={fetchGeminiInfo} speak={speak} isSpeaking={isSpeaking} />
             <VerbListModal show={showVerbList} onClose={() => setShowVerbList(false)} onSelectVerb={selectVerb} verbs={allVerbs} masteredVerbs={appState.masteredVerbs} />
             <SettingsModal show={showSettings} onClose={() => setShowSettings(false)} autoPlay={autoPlay} setAutoPlay={setAutoPlay} onResetProgress={resetAllProgress} />
             
