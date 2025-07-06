@@ -297,7 +297,13 @@ const GermanVerbsApp = () => {
                 throw new Error("Пустой ответ от Gemini.");
             }
     
-            const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+            const rawText = result.candidates[0].content.parts[0].text;
+            let parsedJson = JSON.parse(rawText);
+
+            // Handle cases where the response is an array containing the object
+            if (Array.isArray(parsedJson) && parsedJson.length > 0) {
+                parsedJson = parsedJson[0];
+            }
     
             if (!parsedJson || !parsedJson.examples || !Array.isArray(parsedJson.examples)) {
                 throw new Error("Некорректный формат данных от Gemini.");
