@@ -55,7 +55,8 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
   padding: 1rem;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Dynamic viewport height */
   box-sizing: border-box;
 }
 @media (min-width: 640px) {
@@ -64,6 +65,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
       border-radius: 0.75rem; 
       padding: 1.5rem; 
       height: calc(100vh - 2rem);
+      height: calc(100dvh - 2rem);
   }
 }
 
@@ -74,7 +76,6 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .main-card-body {
   flex-grow: 1;
   overflow-y: auto;
-  /* Custom Scrollbar */
   scrollbar-width: thin;
   scrollbar-color: var(--gray-200) transparent;
 }
@@ -153,40 +154,12 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .nav-btn:hover { background-color: #d1d5db; }
 
 .verb-display { flex: 1; margin: 0 1rem; }
-.verb-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 0.25rem;
-}
-.verb-title h2 { font-size: 2.25rem; font-weight: 700; color: var(--gray-800); margin: 0; flex-shrink: 1; min-width: 0; }
+.verb-display h2 { font-size: 2.25rem; font-weight: 700; color: var(--gray-800); margin: 0; flex-shrink: 1; min-width: 0; }
 .verb-display p { margin: 0.25rem 0 0.5rem; color: var(--gray-500); }
-
-.verb-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.75rem;
-}
-.action-btn {
-  padding: 0.5rem; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center;
-}
-.action-btn-speak {
-  color: var(--blue-600);
-}
-.action-btn-gemini {
-  color: var(--gold-600);
-  background-color: var(--gold-100);
-}
-.action-btn:hover {
-  filter: brightness(0.95);
-}
 
 
 /* --- Table (Study Mode) --- */
-.table-container { background-color: var(--blue-50); border-radius: 0.5rem; }
+.table-container { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; }
 table { width: 100%; border-collapse: collapse; }
 td { border: 1px solid var(--gray-200); padding: 0.75rem; }
 .speak-cell { text-align: center; width: 48px; }
@@ -274,6 +247,38 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
   display: inline-block;
   font-weight: 500;
 }
+
+/* --- Floating Action Buttons (FAB) --- */
+.fab-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.fab-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  color: var(--white);
+}
+.fab-button.speak-fab {
+  background-color: var(--blue-600);
+}
+.fab-button.gemini-fab {
+  background-color: var(--purple-500);
+}
+.fab-button:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
 
 /* --- Modals & Toasts --- */
 .modal-overlay {

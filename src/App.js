@@ -145,9 +145,12 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
 
 const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) => {
     const [geminiInfo, setGeminiInfo] = useState({ loading: false, data: null, error: null });
-    const handleFetch = useCallback(() => { onFetch(verb, setGeminiInfo); }, [verb, onFetch]);
 
-    useEffect(() => { if (show && !geminiInfo.data && !geminiInfo.loading) { handleFetch(); } }, [show, geminiInfo, handleFetch]);
+    useEffect(() => {
+        if (show) {
+            onFetch(verb, setGeminiInfo);
+        }
+    }, [show, verb, onFetch]);
 
     if (!show) return null;
     return (
@@ -312,7 +315,7 @@ const GermanVerbsApp = () => {
 
             setTimeout(() => {
                 setFeedback('');
-                setShowHint(false); // Hide hint on correct answer
+                setShowHint(false);
                 const nextPronounIndex = (currentPronoun + 1) % pronouns.length;
                 setCurrentPronoun(nextPronounIndex);
                 setUserAnswer('');
@@ -421,10 +424,6 @@ const GermanVerbsApp = () => {
                             <div className="verb-display">
                                 <h2>{currentVerb.infinitive}</h2>
                                 <p>{currentVerb.russian}</p>
-                                <div className="verb-actions">
-                                    <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="action-btn action-btn-speak"><Volume2 size={20} /></button>
-                                    <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="action-btn action-btn-gemini"><Sparkles size={20} /></button>
-                                </div>
                             </div>
                             <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
                         </div>
@@ -469,6 +468,11 @@ const GermanVerbsApp = () => {
                         )}
                     </div>
                 </div>
+            </div>
+
+            <div className="fab-container">
+                <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="fab-button speak-fab"><Volume2 /></button>
+                <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="fab-button gemini-fab"><Sparkles /></button>
             </div>
         </>
     );
