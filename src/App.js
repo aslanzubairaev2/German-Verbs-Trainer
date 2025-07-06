@@ -175,6 +175,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                         <div className="gemini-data">
                             <div><h4>Примеры спряжения:</h4>
                                 <ul>{geminiInfo.data.examples.map((ex, i) => 
+                                    (ex && ex.pronoun && ex.german && ex.russian) ? (
                                     <li key={i} className="example-item pronoun-example">
                                         <div className="example-german">
                                             <p><strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german}</p>
@@ -182,6 +183,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                                         </div>
                                         <p className="example-russian">{ex.russian}</p>
                                     </li>
+                                    ) : null
                                 )}</ul>
                             </div>
                         </div>
