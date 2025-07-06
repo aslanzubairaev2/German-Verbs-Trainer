@@ -211,6 +211,7 @@ const GermanVerbsApp = () => {
     const [showHint, setShowHint] = useState(false);
     const [levelUpMessage, setLevelUpMessage] = useState('');
     const [showGeminiModal, setShowGeminiModal] = useState(false);
+    const [geminiDataCache, setGeminiDataCache] = useState({});
 
     // --- DERIVED STATE & MEMOS ---
     const availableVerbsForProgression = useMemo(() => allVerbs.filter(verb => appState.unlockedLevels.includes(verb.level)), [appState.unlockedLevels]);
@@ -237,6 +238,10 @@ const GermanVerbsApp = () => {
     }, [audioReady]);
 
     const fetchGeminiInfo = useCallback(async (verb, setter) => {
+        if (geminiDataCache[verb.infinitive]) {
+            setter({ loading: false, data: geminiDataCache[verb.infinitive], error: null });
+            return;
+        }
         setter({ loading: true, data: null, error: null });
         const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
         if (!apiKey) {
@@ -251,11 +256,12 @@ const GermanVerbsApp = () => {
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const result = await response.json();
             const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+            setGeminiDataCache(prev => ({...prev, [verb.infinitive]: parsedJson}));
             setter({ loading: false, data: parsedJson, error: null });
         } catch (error) {
             setter({ loading: false, data: null, error: "Не удалось получить данные от Gemini." });
         }
-    }, []);
+    }, [geminiDataCache]);
 
     // --- LOGIC ---
     const speakFullPhrase = (pronounIndex) => {
@@ -286,7 +292,6 @@ const GermanVerbsApp = () => {
             const newMasterySet = new Set(currentVerbMastery).add(currentPronoun);
             setCurrentVerbMastery(newMasterySet);
 
-            // Check for full mastery of the verb
             if (newMasterySet.size === pronouns.length && !hintUsed) {
                 if (!appState.masteredVerbs.includes(currentVerb.infinitive)) {
                     setAppState(prev => ({...prev, masteredVerbs: [...prev.masteredVerbs, currentVerb.infinitive]}));
@@ -307,6 +312,7 @@ const GermanVerbsApp = () => {
 
             setTimeout(() => {
                 setFeedback('');
+                setShowHint(false); // Hide hint on correct answer
                 const nextPronounIndex = (currentPronoun + 1) % pronouns.length;
                 setCurrentPronoun(nextPronounIndex);
                 setUserAnswer('');
@@ -328,8 +334,8 @@ const GermanVerbsApp = () => {
 
     const handleHint = () => {
         setShowHint(true);
-        setHintUsed(true); // Mark hint as used for this verb session
-        setCurrentVerbMastery(new Set()); // Reset mastery progress for this verb
+        setHintUsed(true); 
+        setCurrentVerbMastery(new Set()); 
     };
 
     const resetVerbState = () => {
@@ -345,7 +351,7 @@ const GermanVerbsApp = () => {
         const verbIndex = allVerbs.findIndex(v => v.infinitive === verb.infinitive);
         if (verbIndex !== -1) {
             setAppState(prev => ({...prev, lastVerbIndex: verbIndex}));
-            setPracticeMode(false); // Switch to study mode
+            setPracticeMode(false); 
             resetVerbState();
             setShowVerbList(false);
         }
@@ -413,12 +419,12 @@ const GermanVerbsApp = () => {
                         <div className="verb-navigation">
                             <button onClick={() => changeVerb(-1)} className="nav-btn"><ChevronLeft /></button>
                             <div className="verb-display">
-                                <div className="verb-title">
-                                    <h2>{currentVerb.infinitive}</h2>
+                                <h2>{currentVerb.infinitive}</h2>
+                                <p>{currentVerb.russian}</p>
+                                <div className="verb-actions">
                                     <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="action-btn action-btn-speak"><Volume2 size={20} /></button>
                                     <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="action-btn action-btn-gemini"><Sparkles size={20} /></button>
                                 </div>
-                                <p>{currentVerb.russian}</p>
                             </div>
                             <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
                         </div>
