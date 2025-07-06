@@ -199,9 +199,15 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
 
     useEffect(() => {
         if (show) {
+            document.body.style.overflow = 'hidden';
             handleFetch(false);
             setActiveIndex(null);
+        } else {
+            document.body.style.overflow = 'auto';
         }
+        return () => {
+            document.body.style.overflow = 'auto';
+        };
     }, [show, handleFetch]);
     
     const handleToggle = (index) => {
@@ -233,39 +239,32 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
     } else if (geminiInfo.data?.examples && Array.isArray(geminiInfo.data.examples)) {
         content = (
             <div className="gemini-data">
-                {geminiInfo.data.verb_info && (
-                    <div>
-                        <h4>Тип глагола:</h4>
-                        <p className="info-box-indigo">{formatVerbInfo(geminiInfo.data.verb_info)}</p>
-                    </div>
-                )}
-                <div>
-                    <h4>Примеры:</h4>
-                    <ul className="accordion-list">
-                        {geminiInfo.data.examples.map((ex, i) => {
-                            if (!ex || !ex.german_initial || !ex.russian) return null;
-                            const isActive = activeIndex === i;
-                            const cleanInitial = ex.german_initial.replace(/<b>/g, '').replace(/<\/b>/g, '');
-                            return (
-                                <li key={i} className="accordion-item">
-                                    <div className="accordion-header" onClick={() => handleToggle(i)}>
-                                        <div className="accordion-title">
-                                            <p className="example-german" dangerouslySetInnerHTML={{ __html: `<strong class="pronoun-tag">${ex.pronoun}</strong> ${ex.german_initial}` }} />
-                                            <p className="example-russian">{ex.russian}</p>
-                                        </div>
-                                        <div className="accordion-controls">
-                                             <button onClick={(e) => { e.stopPropagation(); speak(cleanInitial); }} disabled={isSpeaking} className="speak-btn-small"><Volume2 size={18} /></button>
-                                             <ChevronDown className={`accordion-icon ${isActive ? 'active' : ''}`} />
-                                        </div>
+                <ul className="accordion-list">
+                    {geminiInfo.data.examples.map((ex, i) => {
+                        if (!ex || !ex.german_initial || !ex.russian) return null;
+                        const isActive = activeIndex === i;
+                        const cleanInitial = ex.german_initial.replace(/<b>/g, '').replace(/<\/b>/g, '');
+                        return (
+                            <li key={i} className="accordion-item">
+                                <div className="accordion-header" onClick={() => handleToggle(i)}>
+                                    <div className="accordion-title">
+                                        <p className="example-german">
+                                            <strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german_initial.replace(/<b>/g, '<b>').replace(/<\/b>/g, '</b>')}
+                                        </p>
+                                        <p className="example-russian">{ex.russian}</p>
                                     </div>
-                                    <div className={`accordion-content ${isActive ? 'active' : ''}`}>
-                                        {isActive && <ConjugationTable forms={ex.forms} speak={speak} isSpeaking={isSpeaking} />}
+                                    <div className="accordion-controls">
+                                         <button onClick={(e) => { e.stopPropagation(); speak(`${ex.pronoun} ${cleanInitial}`); }} disabled={isSpeaking} className="speak-btn-small"><Volume2 size={18} /></button>
+                                         <ChevronDown className={`accordion-icon ${isActive ? 'active' : ''}`} />
                                     </div>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
+                                </div>
+                                <div className={`accordion-content ${isActive ? 'active' : ''}`}>
+                                    {isActive && <ConjugationTable forms={ex.forms} speak={speak} isSpeaking={isSpeaking} />}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
             </div>
         );
     } else {
@@ -276,7 +275,12 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <div className="gemini-modal-header">
-                    <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
+                    <div>
+                        <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
+                        {geminiInfo.data?.verb_info && (
+                             <p className="verb-info-subtitle">{formatVerbInfo(geminiInfo.data.verb_info)}</p>
+                        )}
+                    </div>
                     <button onClick={onClose} className="modal-close-btn"><X /></button>
                 </div>
                 <div className="modal-body-container">
@@ -380,7 +384,7 @@ function GermanVerbsApp() {
           
           Каждый элемент в массиве "examples" должен быть объектом со следующей структурой:
           - "pronoun": "ich" (например)
-          - "german_initial": "простое предложение в настоящем времени, где глагол или его части обернуты в теги <b></b>. Важно: всегда оставляй пробелы вокруг тегов <b>, чтобы слова не слипались."
+          - "german_initial": "простое предложение в настоящем времени БЕЗ МЕСТОИМЕНИЯ, где глагол или его части обернуты в теги <b></b>."
           - "russian": "полный перевод этого предложения"
           - "forms": вложенный объект, содержащий 3 времени (present, past, future), где глаголы также обернуты в <b></b>.
 
@@ -395,7 +399,7 @@ function GermanVerbsApp() {
             "examples": [
               {
                 "pronoun": "ich",
-                "german_initial": "Ich <b>komme</b> nach Hause.",
+                "german_initial": "<b>komme</b> nach Hause.",
                 "russian": "Я иду домой.",
                 "forms": {
                   "present": { "question": "<b>Komme</b> ich nach Hause?", "affirmative": "Ich <b>komme</b> nach Hause.", "negative": "Ich <b>komme</b> nicht nach Hause." },
@@ -854,16 +858,15 @@ function GermanVerbsApp() {
                     color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
-                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; }
+                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; }
+                .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0.1rem 0 0; padding-left: 2rem; }
                 .icon-purple { color: var(--purple-500); }
                 .modal-body-container { flex-grow: 1; padding: 0.5rem 1rem; overflow-y: auto; padding-bottom: 5rem; }
                 .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); padding: 2rem; }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                .gemini-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem 0.5rem 1rem; flex-shrink: 0; }
-                .gemini-data h4 { font-size: 0.875rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
-                .info-box-indigo { background-color: #eef2ff; color: #3730a3; padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-weight: 500; font-size: 0.875rem; }
+                .gemini-modal-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem 1rem 0.5rem 1rem; flex-shrink: 0; }
                 .modal-footer {
                     padding: 1rem;
                     background-color: var(--white);
@@ -909,7 +912,7 @@ function GermanVerbsApp() {
                 /* --- Verb List Modal --- */
                 .verb-list-modal .modal-body-container { padding: 0; }
                 .verb-list-header { padding: 1rem 1rem 0.75rem 1rem; border-bottom: 1px solid var(--gray-200); }
-                .verb-list-header .modal-title { padding: 0 0 0.75rem 0; }
+                .verb-list-header .modal-title { padding: 0 0 0.75rem 0; text-transform: none; }
                 .search-bar { position: relative; }
                 .search-bar svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
                 .search-bar input {
