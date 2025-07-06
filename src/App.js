@@ -248,9 +248,10 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
                             <li key={i} className="accordion-item">
                                 <div className="accordion-header" onClick={() => handleToggle(i)}>
                                     <div className="accordion-title">
-                                        <p className="example-german">
-                                            <strong className="pronoun-tag">{ex.pronoun}</strong> {ex.german_initial.replace(/<b>/g, '<b>').replace(/<\/b>/g, '</b>')}
-                                        </p>
+                                        <p 
+                                            className="example-german"
+                                            dangerouslySetInnerHTML={{ __html: `<strong class="pronoun-tag">${ex.pronoun}</strong> ${ex.german_initial}` }}
+                                        />
                                         <p className="example-russian">{ex.russian}</p>
                                     </div>
                                     <div className="accordion-controls">
@@ -858,8 +859,8 @@ function GermanVerbsApp() {
                     color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
-                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; }
-                .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0.1rem 0 0; padding-left: 2rem; }
+                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
+                .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
                 .modal-body-container { flex-grow: 1; padding: 0.5rem 1rem; overflow-y: auto; padding-bottom: 5rem; }
                 .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); padding: 2rem; }
