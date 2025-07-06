@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown, PlusCircle, MinusCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
 import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
@@ -168,9 +168,9 @@ const ConjugationTable = ({ forms, speak, isSpeaking }) => {
                 <thead>
                     <tr>
                         <th>Время</th>
-                        <th><PlusCircle size={16} title="Утверждение"/></th>
-                        <th><MinusCircle size={16} title="Отрицание"/></th>
-                        <th><HelpCircle size={16} title="Вопрос"/></th>
+                        <th>Утв. (+)</th>
+                        <th>Отр. (-)</th>
+                        <th>Вопр. (?)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -208,6 +208,21 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
         setActiveIndex(activeIndex === index ? null : index);
     };
 
+    const formatVerbInfo = (info) => {
+        if (!info) return null;
+        const { type, regularity } = info;
+        if (!type && !regularity) return null;
+
+        let result = '';
+        if (type) {
+            result += type.charAt(0).toUpperCase() + type.slice(1);
+        }
+        if (regularity) {
+            result += ` (${regularity})`;
+        }
+        return result + ' глагол';
+    };
+
     if (!show) return null;
 
     let content;
@@ -218,7 +233,12 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
     } else if (geminiInfo.data?.examples && Array.isArray(geminiInfo.data.examples)) {
         content = (
             <div className="gemini-data">
-                {geminiInfo.data.verb_type && <div><h4>Тип глагола:</h4><p className="info-box-indigo">{geminiInfo.data.verb_type}</p></div>}
+                {geminiInfo.data.verb_info && (
+                    <div>
+                        <h4>Тип глагола:</h4>
+                        <p className="info-box-indigo">{formatVerbInfo(geminiInfo.data.verb_info)}</p>
+                    </div>
+                )}
                 <div>
                     <h4>Примеры:</h4>
                     <ul className="accordion-list">
@@ -255,15 +275,18 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="modal-close-btn"><X /></button>
                 <div className="gemini-modal-header">
                     <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
-                    <button className="regenerate-btn" onClick={() => handleFetch(true)} disabled={geminiInfo.loading} title="Сгенерировать новые примеры">
-                        <RefreshCw size={18} className={geminiInfo.loading ? 'animate-spin' : ''} />
-                    </button>
+                    <button onClick={onClose} className="modal-close-btn"><X /></button>
                 </div>
                 <div className="modal-body-container">
                     {content}
+                </div>
+                <div className="modal-footer">
+                    <button className="regenerate-btn-footer" onClick={() => handleFetch(true)} disabled={geminiInfo.loading}>
+                        {geminiInfo.loading ? <LoaderCircle className="loader-small" /> : <RefreshCw size={16} />}
+                        <span>Еще варианты</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -347,32 +370,42 @@ function GermanVerbsApp() {
         
         const prompt = `
           Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай JSON объект.
-          Этот объект должен содержать два ключа: "verb_type" (string: "слабый", "сильный" или "смешанный") и "examples" (массив примеров).
-          Создай по одному примеру для каждого местоимения: ich, du, er/sie/es, wir, ihr, sie/Sie.
-
+          Этот объект должен содержать два ключа: "verb_info" и "examples".
+          
+          1. "verb_info": объект с двумя полями:
+             - "type": тип глагола на русском ("слабый", "сильный" или "смешанный").
+             - "regularity": на русском ("правильный" или "неправильный").
+          
+          2. "examples": массив примеров. Создай по одному примеру для каждого местоимения: ich, du, er/sie/es, wir, ihr, sie/Sie.
+          
           Каждый элемент в массиве "examples" должен быть объектом со следующей структурой:
-          1. "pronoun": "ich" (например)
-          2. "german_initial": "простое предложение в настоящем времени, где глагол обернут в теги <b></b>"
-          3. "russian": "полный перевод этого предложения"
-          4. "forms": вложенный объект, содержащий 3 времени (present, past, future).
+          - "pronoun": "ich" (например)
+          - "german_initial": "простое предложение в настоящем времени, где глагол или его части обернуты в теги <b></b>. Важно: всегда оставляй пробелы вокруг тегов <b>, чтобы слова не слипались."
+          - "russian": "полный перевод этого предложения"
+          - "forms": вложенный объект, содержащий 3 времени (present, past, future), где глаголы также обернуты в <b></b>.
 
-          Структура объекта "forms" должна быть такой, с глаголами в тегах <b></b>:
+          Структура объекта "forms":
           - "present": { "question": "...", "affirmative": "...", "negative": "..." }
           - "past": { "question": "...", "affirmative": "...", "negative": "..." } (используй Perfekt)
           - "future": { "question": "...", "affirmative": "...", "negative": "..." } (используй Futur I)
 
-          Пример для "ich mache":
+          Пример для "ich komme":
           {
-            "pronoun": "ich",
-            "german_initial": "Ich <b>mache</b> meine Hausaufgaben.",
-            "russian": "Я делаю свою домашнюю работу.",
-            "forms": {
-              "present": { "question": "<b>Mache</b> ich meine Hausaufgaben?", "affirmative": "Ich <b>mache</b> meine Hausaufgaben.", "negative": "Ich <b>mache</b> meine Hausaufgaben nicht." },
-              "past": { "question": "<b>Habe</b> ich meine Hausaufgaben <b>gemacht</b>?", "affirmative": "Ich <b>habe</b> meine Hausaufgaben <b>gemacht</b>.", "negative": "Ich <b>habe</b> meine Hausaufgaben nicht <b>gemacht</b>." },
-              "future": { "question": "<b>Werde</b> ich meine Hausaufgaben <b>machen</b>?", "affirmative": "Ich <b>werde</b> meine Hausaufgaben <b>machen</b>.", "negative": "Ich <b>werde</b> meine Hausaufgaben nicht <b>machen</b>." }
-            }
+            "verb_info": { "type": "сильный", "regularity": "неправильный" },
+            "examples": [
+              {
+                "pronoun": "ich",
+                "german_initial": "Ich <b>komme</b> nach Hause.",
+                "russian": "Я иду домой.",
+                "forms": {
+                  "present": { "question": "<b>Komme</b> ich nach Hause?", "affirmative": "Ich <b>komme</b> nach Hause.", "negative": "Ich <b>komme</b> nicht nach Hause." },
+                  "past": { "question": "<b>Bin</b> ich nach Hause <b>gekommen</b>?", "affirmative": "Ich <b>bin</b> nach Hause <b>gekommen</b>.", "negative": "Ich <b>bin</b> nicht nach Hause <b>gekommen</b>." },
+                  "future": { "question": "<b>Werde</b> ich nach Hause <b>kommen</b>?", "affirmative": "Ich <b>werde</b> nach Hause <b>kommen</b>.", "negative": "Ich <b>werde</b> nicht nach Hause <b>kommen</b>." }
+                }
+              }
+            ]
           }
-          Создай полный JSON с такой структурой для всех местоимений.
+          Создай полный JSON с такой структурой для всех местоимений для глагола '${verb.infinitive}'.
         `;
         
         const payload = { 
@@ -821,19 +854,41 @@ function GermanVerbsApp() {
                     color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
-                .modal-title { font-size: 1.125rem; font-weight: 600; padding: 1rem 1rem 0 1rem; display: flex; align-items: center; gap: 0.5rem; }
+                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; }
                 .icon-purple { color: var(--purple-500); }
-                .modal-body-container { padding: 1rem; overflow-y: auto; min-height: 250px; }
-                .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); }
+                .modal-body-container { flex-grow: 1; padding: 0.5rem 1rem; overflow-y: auto; padding-bottom: 5rem; }
+                .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); padding: 2rem; }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
+                .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                .gemini-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem 0 1rem; }
-                .gemini-modal-header .modal-title { padding: 0; }
-                .regenerate-btn { padding: 0.5rem; color: var(--gray-500); border-radius: 50%; }
-                .regenerate-btn:hover { background-color: var(--gray-100); color: var(--gray-800); }
-                .regenerate-btn .animate-spin { animation: spin 1s linear infinite; }
-                .gemini-data h4 { font-size: 1rem; font-weight: 600; margin-top: 0.75rem; margin-bottom: 0.5rem; }
+                .gemini-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1rem 0.5rem 1rem; flex-shrink: 0; }
+                .gemini-data h4 { font-size: 0.875rem; font-weight: 600; margin: 0.75rem 0 0.5rem; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; }
                 .info-box-indigo { background-color: #eef2ff; color: #3730a3; padding: 0.5rem 0.75rem; border-radius: 0.5rem; font-weight: 500; font-size: 0.875rem; }
+                .modal-footer {
+                    padding: 1rem;
+                    background-color: var(--white);
+                    border-top: 1px solid var(--gray-200);
+                    flex-shrink: 0;
+                    position: absolute;
+                    bottom: 0;
+                    width: 100%;
+                    box-sizing: border-box;
+                    border-radius: 0 0 0.75rem 0.75rem;
+                }
+                .regenerate-btn-footer {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border-radius: 0.5rem;
+                    background-color: var(--blue-600);
+                    color: var(--white);
+                    font-weight: 600;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+                .regenerate-btn-footer:hover { background-color: var(--blue-700); }
+                .regenerate-btn-footer:disabled { background-color: var(--gray-400); }
                 
                 /* --- Settings/Info Modal --- */
                 .settings-tabs { display: flex; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem 0 1.5rem; }
@@ -919,7 +974,18 @@ function GermanVerbsApp() {
                 .example-german b { color: var(--blue-600); font-weight: 700; }
 
                 /* --- Стили для компактной таблицы --- */
-                .conjugation-table-wrapper { background-color: var(--white); border-radius: 0.375rem; margin-top: 0.25rem; border: 1px solid var(--gray-200); overflow-x: auto; }
+                .conjugation-table-wrapper { 
+                    background-color: var(--white); 
+                    border-radius: 0.375rem; 
+                    margin-top: 0.25rem; 
+                    border: 1px solid var(--gray-200); 
+                    overflow-x: auto; 
+                }
+                .conjugation-table-wrapper::-webkit-scrollbar { height: 4px; }
+                .conjugation-table-wrapper::-webkit-scrollbar-track { background: var(--gray-100); }
+                .conjugation-table-wrapper::-webkit-scrollbar-thumb { background: var(--blue-100); border-radius: 4px; }
+                .conjugation-table-wrapper::-webkit-scrollbar-thumb:hover { background: var(--blue-600); }
+
                 .conjugation-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
                 .conjugation-table th, .conjugation-table td { border: 1px solid var(--gray-200); padding: 0.4rem 0.6rem; text-align: left; vertical-align: middle; }
                 .conjugation-table th { background-color: var(--gray-100); font-weight: 600; text-align: center; }
