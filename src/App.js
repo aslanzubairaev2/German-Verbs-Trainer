@@ -152,7 +152,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
 
     useEffect(() => {
         if (show) {
-            handleFetch(false); // Fetch from cache first
+            handleFetch(false);
         }
     }, [show, handleFetch]);
 
@@ -166,6 +166,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
     } else if (geminiInfo.data && geminiInfo.data.examples && Array.isArray(geminiInfo.data.examples)) {
         content = (
             <div className="gemini-data">
+                {geminiInfo.data.verb_type && <div><h4>Тип глагола:</h4><p className="info-box-indigo">{geminiInfo.data.verb_type}</p></div>}
                 <div><h4>Примеры спряжения:</h4>
                     <ul>{geminiInfo.data.examples.map((ex, i) => 
                         (ex && ex.pronoun && ex.german && ex.russian) ? (
@@ -280,7 +281,7 @@ const GermanVerbsApp = () => {
             setter({ loading: false, data: null, error: "API ключ не настроен." });
             return;
         }
-        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай JSON объект. Этот объект должен содержать ключ "examples", значением которого является массив примеров предложений. Создай по одному примеру для каждого местоимения: ich, du, er, sie, es, wir, ihr, sie, Sie. Каждый элемент в массиве "examples" должен быть объектом с полями "pronoun", "german" (только часть предложения без местоимения) и "russian" (полный перевод предложения).`;
+        const prompt = `Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай JSON объект. Этот объект должен содержать два ключа: "verb_type" (string: "слабый", "сильный" или "смешанный") и "examples" (массив примеров). Создай по одному примеру для каждого местоимения: ich, du, er, sie, es, wir, ihr, sie, Sie. Каждый элемент в массиве "examples" должен быть объектом с полями "pronoun", "german" (только часть предложения без местоимения) и "russian" (полный перевод предложения).`;
         const payload = { 
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
@@ -297,10 +298,8 @@ const GermanVerbsApp = () => {
                 throw new Error("Пустой ответ от Gemini.");
             }
     
-            const rawText = result.candidates[0].content.parts[0].text;
-            let parsedJson = JSON.parse(rawText);
-
-            // Handle cases where the response is an array containing the object
+            let parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
+    
             if (Array.isArray(parsedJson) && parsedJson.length > 0) {
                 parsedJson = parsedJson[0];
             }
