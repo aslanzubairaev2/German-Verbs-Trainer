@@ -331,7 +331,7 @@ function GermanVerbsApp() {
         
         // ВАЖНО: Вставьте ваш API ключ сюда.
         // В реальном приложении этот ключ должен быть на сервере для безопасности.
-        const apiKey = ""; // <-- ВСТАВЬТЕ ВАШ API КЛЮЧ ЗДЕСЬ
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY; // <-- ВСТАВЬТЕ ВАШ API КЛЮЧ ЗДЕСЬ
         if (!apiKey) {
             setter({ loading: false, data: null, error: "API ключ не настроен. Вставьте его в код App.js." });
             return;
