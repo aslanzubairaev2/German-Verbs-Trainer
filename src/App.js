@@ -12,7 +12,7 @@ const pronouns = [
     { german: 'sie/Sie', russian: 'они/Вы', base: 'sie' }
 ];
 
-// --- ИСПРАВЛЕННЫЙ КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА ---
+// --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА (UI/UX OVERHAUL) ---
 const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
     const [formsInfo, setFormsInfo] = useState({ loading: true, data: null, error: null });
     const [selectedPronounIndex, setSelectedPronounIndex] = useState(0);
@@ -25,6 +25,8 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
 
     // Эффект для загрузки данных при смене глагола или местоимения
     useEffect(() => {
+        // Сбрасываем состояние при смене глагола, чтобы показать загрузчик
+        setFormsInfo({ loading: true, data: null, error: null });
         const selectedPronoun = pronouns[selectedPronounIndex];
         fetchVerbForms(verb, selectedPronoun, setFormsInfo);
     }, [verb, selectedPronounIndex, fetchVerbForms]);
@@ -104,17 +106,19 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
             <div className="table-content-wrapper">
                 {content}
             </div>
-            <div className="pronoun-selector-container" ref={pronounContainerRef}>
-                {pronouns.map((p, index) => (
-                    <button 
-                        key={p.german} 
-                        ref={index === selectedPronounIndex ? activePronounRef : null}
-                        className={`pronoun-selector-btn ${index === selectedPronounIndex ? 'active' : ''}`}
-                        onClick={() => handlePronounChange(index)}
-                    >
-                        {p.german}
-                    </button>
-                ))}
+            <div className="pronoun-selector-wrapper">
+                <div className="pronoun-selector-container" ref={pronounContainerRef}>
+                    {pronouns.map((p, index) => (
+                        <button 
+                            key={p.german} 
+                            ref={index === selectedPronounIndex ? activePronounRef : null}
+                            className={`pronoun-selector-btn ${index === selectedPronounIndex ? 'active' : ''}`}
+                            onClick={() => handlePronounChange(index)}
+                        >
+                            {p.german}
+                        </button>
+                    ))}
+                </div>
             </div>
         </div>
     );
@@ -1049,14 +1053,14 @@ function GermanVerbsApp() {
                 .verb-form-cell { font-weight: 700; color: var(--blue-600); }
                 .verb-form-cell div { display: flex; align-items: center; gap: 0.5rem; }
 
-                /* --- Verb Forms Component (NEW) --- */
+                /* --- Verb Forms Component (UI/UX Overhaul) --- */
                 .verb-forms-container {
                     display: flex;
                     flex-direction: column;
                     gap: 1rem;
                 }
                 .table-content-wrapper {
-                    // min-height: 200px; /* Prevents layout jump */
+                    min-height: 160px; /* Prevents layout jump */
                     display: flex;
                     flex-direction: column;
                     justify-content: center;
@@ -1067,6 +1071,8 @@ function GermanVerbsApp() {
                     scrollbar-color: var(--blue-100) transparent;
                     border: 1px solid var(--gray-200);
                     border-radius: 0.5rem;
+                    overscroll-behavior-x: contain; /* Prevents page scroll */
+                    touch-action: pan-x; /* Improves mobile scroll experience */
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar {
                     height: 6px;
@@ -1076,25 +1082,37 @@ function GermanVerbsApp() {
                     background: transparent;
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb {
-                    background-color: var(--blue-100);
+                    background-color: var(--gray-200);
                     border-radius: 6px;
                 }
                  .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb:hover {
-                    background-color: var(--blue-600);
+                    background-color: var(--gray-400);
                 }
 
                 .verb-forms-grid-table {
                     width: 100%;
-                    border-collapse: collapse;
+                    border-collapse: separate; /* Crucial for sticky columns */
+                    border-spacing: 0;
                     font-size: 0.85rem;
                 }
                 .verb-forms-grid-table th, .verb-forms-grid-table td {
-                    border: 1px solid var(--gray-200);
+                    border-bottom: 1px solid var(--gray-200);
+                    border-right: 1px solid var(--gray-200);
                     padding: 0.6rem 0.75rem;
                     text-align: left;
                     vertical-align: middle;
                     white-space: nowrap;
                 }
+                .verb-forms-grid-table th:first-child, .verb-forms-grid-table td:first-child {
+                    border-left: none;
+                }
+                .verb-forms-grid-table tr:last-child td {
+                    border-bottom: none;
+                }
+                 .verb-forms-grid-table th:last-child, .verb-forms-grid-table td:last-child {
+                    border-right: none;
+                }
+
                 .verb-forms-grid-table thead th {
                     background-color: var(--gray-100);
                     font-weight: 600;
@@ -1104,9 +1122,9 @@ function GermanVerbsApp() {
                 }
                 .verb-forms-grid-table .sticky-col {
                     position: sticky;
-                    left: 0;
+                    left: 5px;
                     z-index: 1;
-                    width: 80px; /* Fixed width for the first column */
+                    width: 80px;
                 }
                 .verb-forms-grid-table thead .sticky-col {
                     background-color: var(--gray-100);
@@ -1114,19 +1132,50 @@ function GermanVerbsApp() {
                 .verb-forms-grid-table tbody .sticky-col {
                     font-weight: 600;
                     color: var(--gray-800);
+                    background-color: var(--white);
+                }
+                .verb-forms-grid-table tr:nth-child(even) .sticky-col {
                     background-color: var(--gray-50);
                 }
+                .verb-forms-grid-table tr:nth-child(even) td {
+                    background-color: var(--gray-50);
+                }
+
+
                 .verb-forms-grid-table b {
                     color: var(--blue-600);
                     font-weight: 700;
                 }
                 
+                .pronoun-selector-wrapper {
+                    position: relative;
+                }
+                .pronoun-selector-wrapper::before, .pronoun-selector-wrapper::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    bottom: 0;
+                    width: 20px;
+                    pointer-events: none;
+                    z-index: 2;
+                }
+                .pronoun-selector-wrapper::before {
+                    left: 0;
+                    background: linear-gradient(to right, var(--white), transparent);
+                }
+                .pronoun-selector-wrapper::after {
+                    right: 0;
+                    background: linear-gradient(to left, var(--white), transparent);
+                }
+
                 .pronoun-selector-container {
                     display: flex;
                     gap: 0.5rem;
                     overflow-x: auto;
-                    padding: 0.5rem 0;
+                    padding: 0.5rem 1rem;
                     scrollbar-width: none; /* Firefox */
+                    overscroll-behavior-x: contain;
+                    touch-action: pan-x;
                 }
                 .pronoun-selector-container::-webkit-scrollbar {
                     display: none; /* Safari and Chrome */
@@ -1157,8 +1206,11 @@ function GermanVerbsApp() {
                         border-right: none;
                         border-radius: 0;
                     }
-                    .pronoun-selector-container {
-                        padding: 0.5rem 1rem;
+                    .pronoun-selector-wrapper::before {
+                        background: linear-gradient(to right, var(--white), transparent);
+                    }
+                    .pronoun-selector-wrapper::after {
+                        background: linear-gradient(to left, var(--white), transparent);
                     }
                 }
 
@@ -1219,7 +1271,7 @@ function GermanVerbsApp() {
                 .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
                 .modal-body-container { flex-grow: 1; padding: 0.5rem 1.5rem; overflow-y: auto; padding-bottom: 5rem; }
-                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); padding: 1.4rem;  }
+                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
