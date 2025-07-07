@@ -1,0 +1,136 @@
+.verb-forms-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.table-content-wrapper {
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.verb-forms-grid-table-wrapper {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue-100) transparent;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+}
+.verb-forms-grid-table-wrapper::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+.verb-forms-grid-table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+.verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--gray-200);
+    border-radius: 6px;
+}
+.verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb:hover {
+    background-color: var(--gray-400);
+}
+.verb-forms-grid-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.85rem;
+}
+.verb-forms-grid-table th, .verb-forms-grid-table td {
+    border-bottom: 1px solid var(--gray-200);
+    border-right: 1px solid var(--gray-200);
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.verb-forms-grid-table th:first-child, .verb-forms-grid-table td:first-child {
+    border-left: none;
+}
+.verb-forms-grid-table tr:last-child td {
+    border-bottom: none;
+}
+.verb-forms-grid-table th:last-child, .verb-forms-grid-table td:last-child {
+    border-right: none;
+}
+.verb-forms-grid-table thead th {
+    background-color: var(--gray-100);
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--gray-900);
+    text-align: center;
+}
+.verb-forms-grid-table .sticky-col {
+    position: sticky;
+    left: 5px;
+    z-index: 1;
+    width: 80px;
+}
+.verb-forms-grid-table thead .sticky-col {
+    background-color: var(--gray-100);
+}
+.verb-forms-grid-table tbody .sticky-col {
+    font-weight: 600;
+    color: var(--gray-800);
+    background-color: var(--white);
+}
+.verb-forms-grid-table tr:nth-child(even) .sticky-col {
+    background-color: var(--gray-50);
+}
+.verb-forms-grid-table tr:nth-child(even) td {
+    background-color: var(--gray-50);
+}
+.verb-forms-grid-table b {
+    color: var(--blue-600);
+    font-weight: 700;
+}
+.pronoun-selector-wrapper {
+    position: relative;
+}
+.pronoun-selector-wrapper::before, .pronoun-selector-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+    z-index: 2;
+}
+.pronoun-selector-wrapper::before {
+    left: 0;
+    background: linear-gradient(to right, var(--white), transparent);
+}
+.pronoun-selector-wrapper::after {
+    right: 0;
+    background: linear-gradient(to left, var(--white), transparent);
+}
+.pronoun-selector-container {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+}
+.pronoun-selector-container::-webkit-scrollbar {
+    display: none;
+}
+.pronoun-selector-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    background-color: var(--gray-100);
+    color: var(--gray-800);
+    flex-shrink: 0;
+    border: 2px solid transparent;
+}
+.pronoun-selector-btn.active {
+    background-color: var(--blue-100);
+    color: var(--blue-700);
+    font-weight: 700;
+    border-color: var(--blue-600);
+} 

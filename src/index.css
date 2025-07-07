@@ -75,7 +75,7 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 
 .main-card-body {
   flex-grow: 1;
-  overflow-y: auto;
+  /* overflow-y: auto; */
   /* Custom Scrollbar */
   scrollbar-width: thin;
   scrollbar-color: var(--gray-200) transparent;
@@ -271,6 +271,7 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
 }
 .fab-button.speak-fab {
   background-color: var(--blue-600);
+  opacity: 0.5;
 }
 .fab-button.gemini-fab {
   background-color: var(--purple-500);
@@ -343,7 +344,10 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
 .gemini-data h4 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
 .gemini-data ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .example-item { background-color: var(--blue-50); padding: 0.75rem; border-radius: 0.5rem; }
-.example-german { display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: var(--blue-700); }
+.example-german {
+  font-weight: 600;
+  color: var(--blue-700);
+}
 .pronoun-tag {
   background-color: var(--blue-100);
   color: var(--blue-700);
@@ -376,7 +380,7 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
 
 /* Verb List Modal */
 .verb-list-modal .modal-body-container { padding: 0; }
-.verb-list-header { padding: 1.5rem 1.5rem 1rem 1.5rem; border-bottom: 1px solid var(--gray-200); }
+.verb-list-header { padding: 1rem 1rem 1rem 1rem; border-bottom: 1px solid var(--gray-200); }
 .search-bar { position: relative; margin-top: 1rem; }
 .search-bar svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
 .search-bar input {

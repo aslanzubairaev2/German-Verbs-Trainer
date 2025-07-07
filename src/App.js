@@ -1,899 +1,527 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
-import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  X,
+  Volume2,
+  Settings,
+  Sparkles,
+  LoaderCircle,
+  Unlock,
+  HelpCircle,
+  Lightbulb,
+  List,
+  Search,
+  AlertTriangle,
+  RefreshCw,
+  ChevronDown,
+} from "lucide-react";
+import { allVerbs } from "./verbsData.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
+import VerbListModal from "./components/VerbListModal.js";
+import SettingsModal from "./components/SettingsModal.js";
+import GeminiInfoModal from "./components/GeminiInfoModal.js";
+import LevelUpToast from "./components/LevelUpToast.js";
+import VerbFormsDisplay from "./components/VerbFormsDisplay.js";
+import { pronouns, LEVEL_ORDER, LEVEL_UP_REQUIREMENTS } from "./constants";
+import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
-const pronouns = [
-    { german: 'ich', russian: 'я', base: 'ich' },
-    { german: 'du', russian: 'ты', base: 'du' },
-    { german: 'er/sie/es', russian: 'он/она/оно', base: 'er' }, // 'base' для логики, 'german' для отображения
-    { german: 'wir', russian: 'мы', base: 'wir' },
-    { german: 'ihr', russian: 'вы', base: 'ihr' },
-    { german: 'sie/Sie', russian: 'они/Вы', base: 'sie' }
-];
-
-// --- КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА (UI/UX OVERHAUL) ---
-const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
-    const [formsInfo, setFormsInfo] = useState({ loading: true, data: null, error: null });
-    const [selectedPronounIndex, setSelectedPronounIndex] = useState(0);
-    const pronounContainerRef = useRef(null);
-    const activePronounRef = useRef(null);
-
-    const handlePronounChange = (index) => {
-        setSelectedPronounIndex(index);
-    };
-
-    // Эффект для загрузки данных при смене глагола или местоимения
-    useEffect(() => {
-        // Сбрасываем состояние при смене глагола, чтобы показать загрузчик
-        setFormsInfo({ loading: true, data: null, error: null });
-        const selectedPronoun = pronouns[selectedPronounIndex];
-        fetchVerbForms(verb, selectedPronoun, setFormsInfo);
-    }, [verb, selectedPronounIndex, fetchVerbForms]);
-
-    // Эффект для прокрутки активного местоимения в зону видимости
-    useEffect(() => {
-        if (activePronounRef.current) {
-            activePronounRef.current.scrollIntoView({
-                behavior: 'smooth',
-                inline: 'center',
-                block: 'nearest'
-            });
-        }
-    }, [selectedPronounIndex]);
-
-
-    const renderCellContent = (text) => {
-        if (!text || text === '-') return '-';
-        const cleanText = text.replace(/<\/?[^>]+(>|$)/g, "");
-        return (
-            <div className="table-cell-content">
-                <span dangerouslySetInnerHTML={{ __html: text }} />
-                <button 
-                    onClick={(e) => { e.stopPropagation(); speak(cleanText); }} 
-                    disabled={isSpeaking} 
-                    className="speak-btn-tiny">
-                    <Volume2 size={14} />
-                </button>
-            </div>
-        );
-    };
-    
-    let content;
-    if (formsInfo.loading) {
-        content = <div className="loader-container"><LoaderCircle className="loader" /><p>Загрузка форм...</p></div>;
-    } else if (formsInfo.error) {
-        content = <div className="error-box">{formsInfo.error}</div>;
-    } else if (!formsInfo.data || !formsInfo.data.forms) {
-        content = <div className="error-box">Не удалось загрузить формы глагола.</div>;
-    } else {
-        const { present, past, future } = formsInfo.data.forms;
-        const tenses = [
-            { key: 'present', name: 'Наст.', data: present },
-            { key: 'past', name: 'Прош.', data: past },
-            { key: 'future', name: 'Будущ.', data: future },
-        ];
-        content = (
-             <div className="verb-forms-grid-table-wrapper">
-                <table className="verb-forms-grid-table">
-                    <thead>
-                        <tr>
-                            <th className="sticky-col">Время</th>
-                            <th>Утверждение (+)</th>
-                            <th>Отрицание (-)</th>
-                            <th>Вопрос (?)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tenses.map(tense => (
-                            tense.data ? (
-                                <tr key={tense.key}>
-                                    <td className="sticky-col">{tense.name}</td>
-                                    <td>{renderCellContent(tense.data.affirmative)}</td>
-                                    <td>{renderCellContent(tense.data.negative)}</td>
-                                    <td>{renderCellContent(tense.data.question)}</td>
-                                </tr>
-                            ) : null
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        );
-    }
-
-    return (
-        <div className="verb-forms-container">
-            <div className="table-content-wrapper">
-                {content}
-            </div>
-            <div className="pronoun-selector-wrapper">
-                <div className="pronoun-selector-container" ref={pronounContainerRef}>
-                    {pronouns.map((p, index) => (
-                        <button 
-                            key={p.german} 
-                            ref={index === selectedPronounIndex ? activePronounRef : null}
-                            className={`pronoun-selector-btn ${index === selectedPronounIndex ? 'active' : ''}`}
-                            onClick={() => handlePronounChange(index)}
-                        >
-                            {p.german}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2'];
-const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };
-
-// --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
-
-// Модальное окно со списком глаголов, поиском и фильтрацией по уровням
-const VerbListModal = ({ show, onClose, onSelectVerb, verbs, masteredVerbs }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-
-    // Фильтрация глаголов по поисковому запросу
-    const filteredVerbs = useMemo(() => {
-        if (!searchTerm) return verbs;
-        const lowercasedFilter = searchTerm.toLowerCase();
-        return verbs.filter(verb =>
-            verb.infinitive.toLowerCase().includes(lowercasedFilter) ||
-            verb.russian.toLowerCase().includes(lowercasedFilter)
-        );
-    }, [searchTerm, verbs]);
-
-    // Группировка глаголов по уровню
-    const groupedVerbs = useMemo(() => {
-        return filteredVerbs.reduce((acc, verb) => {
-            (acc[verb.level] = acc[verb.level] || []).push(verb);
-            return acc;
-        }, {});
-    }, [filteredVerbs]);
-
-    if (!show) return null;
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content verb-list-modal" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="modal-close-btn"><X /></button>
-                <div className="verb-list-header">
-                    <h3 className="modal-title">Список глаголов</h3>
-                    <div className="search-bar">
-                        <Search size={18} />
-                        <input type="text" placeholder="Поиск на немецком или русском..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                    </div>
-                </div>
-                <div className="modal-body-container">
-                    {Object.keys(groupedVerbs).length > 0 ? (
-                        LEVEL_ORDER.map(level => groupedVerbs[level] && (
-                            <div key={level}>
-                                <h4 className="level-header">{level}</h4>
-                                <ul className="verb-list">
-                                    {groupedVerbs[level].map(verb => (
-                                        <li key={verb.infinitive} onClick={() => onSelectVerb(verb)}>
-                                            <span>{verb.infinitive} <span className="verb-translation">({verb.russian})</span></span>
-                                            {masteredVerbs.includes(verb.infinitive) && <Check className="check-mark" size={18} />}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="no-results">Глаголы не найдены.</p>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Модальное окно настроек приложения и справки
-const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }) => {
-    const [activeTab, setActiveTab] = useState('settings');
-    const [confirmReset, setConfirmReset] = useState(false);
-    
-    // Обработка сброса прогресса
-    const handleReset = () => {
-        onResetProgress();
-        onClose();
-    };
-
-    if (!show) return null;
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button onClick={onClose} className="modal-close-btn"><X /></button>
-                <div className="settings-tabs">
-                    <button className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}><Settings /> Настройки</button>
-                    <button className={activeTab === 'info' ? 'active' : ''} onClick={() => setActiveTab('info')}><HelpCircle /> Справка</button>
-                </div>
-                <div className="modal-body-container">
-                    {activeTab === 'settings' && (<>
-                        <div className="settings-row">
-                            <span>Автоозвучивание</span>
-                            <button onClick={() => setAutoPlay(!autoPlay)} className={`toggle-btn ${autoPlay ? 'on' : 'off'}`}>
-                                {autoPlay ? <Volume2 /> : <X />}<span>{autoPlay ? 'Вкл' : 'Выкл'}</span>
-                            </button>
-                        </div>
-                        <div className="reset-section">
-                            <h4>Сброс прогресса</h4>
-                            <p>Это действие удалит все данные о пройденных глаголах и открытых уровнях.</p>
-                            {!confirmReset ? (
-                                <button className="reset-btn-initial" onClick={() => setConfirmReset(true)}>Сбросить весь прогресс</button>
-                            ) : (
-                                <div className="reset-confirm">
-                                    <p>Вы уверены?</p>
-                                    <button className="reset-btn-cancel" onClick={() => setConfirmReset(false)}>Отмена</button>
-                                    <button className="reset-btn-confirm" onClick={handleReset}><AlertTriangle size={16}/> Да, сбросить</button>
-                                </div>
-                            )}
-                        </div>
-                    </>)}
-                    {activeTab === 'info' && (
-                        <div className="info-tab">
-                             <h4>Основы спряжения глаголов</h4>
-                             <p>В немецком, как и в русском, глаголы меняют свою форму в зависимости от того, кто выполняет действие (лицо) и когда (время). Этот процесс называется <strong>спряжением</strong>.</p>
-                             <h5>Типы глаголов:</h5>
-                             <ul>
-                                 <li><strong>Слабые (правильные):</strong> Самая простая группа. Они спрягаются по четким правилам, добавляя стандартные окончания к основе глагола. Пример: <em>machen (делать) -> ich mach<strong>e</strong>, du mach<strong>st</strong></em>.</li>
-                                 <li><strong>Сильные (неправильные):</strong> Эти глаголы "не подчиняются" общим правилам. При спряжении у них часто меняется корневая гласная. Пример: <em>sprechen (говорить) -> ich spreche, du spr<strong>i</strong>chst</em>. Их формы нужно запоминать.</li>
-                                 <li><strong>Смешанные:</strong> Редкая группа, которая ведет себя как слабые глаголы (берет их окончания), но при этом меняет корневую гласную, как сильные. Пример: <em>denken (думать) -> ich dachte (в прошлом времени)</em>.</li>
-                             </ul>
-                             <h5>Стандартные окончания (для слабых глаголов):</h5>
-                             <table>
-                                 <tbody>
-                                     <tr><td>ich (я)</td><td>-e</td></tr>
-                                     <tr><td>du (ты)</td><td>-st</td></tr>
-                                     <tr><td>er/sie/es (он/она/оно)</td><td>-t</td></tr>
-                                     <tr><td>wir (мы)</td><td>-en</td></tr>
-                                     <tr><td>ihr (вы, мн.ч.)</td><td>-t</td></tr>
-                                     <tr><td>sie/Sie (они/Вы)</td><td>-en</td></tr>
-                                 </tbody>
-                             </table>
-                             <p>Этот тренажер поможет вам отработать и запомнить формы самых важных глаголов.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Таблица спряжения глагола по временам (настоящее, прошедшее, будущее)
-const ConjugationTable = ({ forms, speak, isSpeaking }) => {
-    if (!forms) return <p>Нет данных для таблицы.</p>;
-
-    const tenses = [
-        { key: 'present', name: 'Наст.' },
-        { key: 'past', name: 'Прош.' },
-        { key: 'future', name: 'Будущ.' },
-    ];
-
-    // Рендер ячейки с формой глагола и кнопкой озвучивания
-    const renderCellContent = (text) => {
-        if (!text || text === '-') return '-';
-        const cleanText = text.replace(/<b>/g, '').replace(/<\/b>/g, '');
-        return (
-            <div className="table-cell-content">
-                <span dangerouslySetInnerHTML={{ __html: text }} />
-                <button onClick={(e) => { e.stopPropagation(); speak(cleanText); }} disabled={isSpeaking} className="speak-btn-tiny"><Volume2 size={14} /></button>
-            </div>
-        );
-    };
-
-    return (
-        <div className="conjugation-table-wrapper">
-            <table className="conjugation-table">
-                <thead>
-                    <tr>
-                        <th>Время</th>
-                        <th>Утв. (+)</th>
-                        <th>Отр. (-)</th>
-                        <th>Вопр. (?)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {tenses.map(tense => (
-                        <tr key={tense.key}>
-                            <td>{tense.name}</td>
-                            <td>{renderCellContent(forms[tense.key]?.affirmative)}</td>
-                            <td>{renderCellContent(forms[tense.key]?.negative)}</td>
-                            <td>{renderCellContent(forms[tense.key]?.question)}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
-
-// Модальное окно с информацией и примерами от Gemini (AI), аккордеон с примерами и таблицами форм
-const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) => {
-    const [geminiInfo, setGeminiInfo] = useState({ loading: false, data: null, error: null });
-    const [activeIndex, setActiveIndex] = useState(null); 
-    
-    // Получение данных от Gemini (AI)
-    const handleFetch = useCallback((force = false) => {
-        onFetch(verb, setGeminiInfo, force);
-    }, [verb, onFetch]);
-
-    useEffect(() => {
-        if (show) {
-            document.body.style.overflow = 'hidden';
-            handleFetch(false);
-            setActiveIndex(null);
-        } else {
-            document.body.style.overflow = 'auto';
-        }
-        return () => {
-            document.body.style.overflow = 'auto';
-        };
-    }, [show, handleFetch]);
-    
-    // Открытие/закрытие аккордеона примера
-    const handleToggle = (index) => {
-        setActiveIndex(activeIndex === index ? null : index);
-    };
-
-    // Форматирование информации о типе глагола
-    const formatVerbInfo = (info) => {
-        if (!info) return null;
-        const { type, regularity } = info;
-        if (!type && !regularity) return null;
-
-        let result = '';
-        if (type) {
-            result += type.charAt(0).toUpperCase() + type.slice(1);
-        }
-        if (regularity) {
-            result += ` (${regularity})`;
-        }
-        return result + ' глагол';
-    };
-
-    if (!show) return null;
-
-    let content;
-    if (geminiInfo.loading) {
-        content = <div className="loader-container"><LoaderCircle className="loader" /><p>Gemini генерирует информацию...</p></div>;
-    } else if (geminiInfo.error) {
-        content = <div className="error-box">{geminiInfo.error}</div>;
-    } else if (geminiInfo.data?.examples && Array.isArray(geminiInfo.data.examples)) {
-        content = (
-            <div className="gemini-data">
-                <ul className="accordion-list">
-                    {geminiInfo.data.examples.map((ex, i) => {
-                        if (!ex || !ex.german_initial || !ex.russian) return null;
-                        const isActive = activeIndex === i;
-                        const cleanInitial = ex.german_initial.replace(/<b>/g, '').replace(/<\/b>/g, '');
-                        return (
-                            <li key={i} className="accordion-item">
-                                <div className="accordion-header" onClick={() => handleToggle(i)}>
-                                    <div className="accordion-title">
-                                        <p 
-                                            className="example-german"
-                                            dangerouslySetInnerHTML={{ __html: `<strong class="pronoun-tag">${ex.pronoun}</strong> ${ex.german_initial}` }}
-                                        />
-                                        <p className="example-russian">{ex.russian}</p>
-                                    </div>
-                                    <div className="accordion-controls">
-                                         <button onClick={(e) => { e.stopPropagation(); speak(`${ex.pronoun} ${cleanInitial}`); }} disabled={isSpeaking} className="speak-btn-small"><Volume2 size={18} /></button>
-                                         <ChevronDown className={`accordion-icon ${isActive ? 'active' : ''}`} />
-                                    </div>
-                                </div>
-                                <div className={`accordion-content ${isActive ? 'active' : ''}`}>
-                                    {isActive && <ConjugationTable forms={ex.forms} speak={speak} isSpeaking={isSpeaking} />}
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </div>
-        );
-    } else {
-        content = <div className="error-box">Получены некорректные данные. Попробуйте сгенерировать снова.</div>;
-    }
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <div className="gemini-modal-header">
-                    <div>
-                        <h3 className="modal-title"><Sparkles className="icon-purple" />{verb.infinitive}</h3>
-                        {geminiInfo.data?.verb_info && (
-                             <p className="verb-info-subtitle">{formatVerbInfo(geminiInfo.data.verb_info)}</p>
-                        )}
-                    </div>
-                    <button onClick={onClose} className="modal-close-btn"><X /></button>
-                </div>
-                <div className="modal-body-container">
-                    {content}
-                </div>
-                <div className="modal-footer">
-                    <button className="regenerate-btn-footer" onClick={() => handleFetch(true)} disabled={geminiInfo.loading}>
-                        {geminiInfo.loading ? <LoaderCircle className="loader-small" /> : <RefreshCw size={16} />}
-                        <span>Еще варианты</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Всплывающее уведомление о переходе на новый уровень
-const LevelUpToast = ({ message, onDismiss }) => {
-    if (!message) return null;
-    return <div className="level-up-toast"><Unlock /><span>{message}</span><button onClick={onDismiss}>&times;</button></div>;
-};
 
 // --- ОСНОВНОЙ КОМПОНЕНТ ПРИЛОЖЕНИЯ ---
 function GermanVerbsApp() {
-    // --- STATE ---
-    const [appState, setAppState] = useState(() => {
-        try {
-            const savedState = localStorage.getItem('germanVerbsState');
-            const initialState = {
-                unlockedLevels: ['A1'],
-                levelProgress: LEVEL_ORDER.reduce((acc, level) => ({ ...acc, [level]: { correct: 0, total: 0, uniqueVerbs: [] } }), {}),
-                masteredVerbs: [],
-                lastVerbIndex: 0,
-            };
-            return savedState ? { ...initialState, ...JSON.parse(savedState) } : initialState;
-        } catch (error) {
-            console.error("Failed to parse state from localStorage", error);
-            return { unlockedLevels: ['A1'], levelProgress: {}, masteredVerbs: [], lastVerbIndex: 0 };
-        }
-    });
-    
-    const [practiceMode, setPracticeMode] = useState(false);
-    const [userAnswer, setUserAnswer] = useState('');
-    const [currentPronoun, setCurrentPronoun] = useState(0);
-    const [feedback, setFeedback] = useState('');
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const [audioReady, setAudioReady] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
-    const [autoPlay, setAutoPlay] = useState(true);
-    const [showVerbList, setShowVerbList] = useState(false);
-    const [hintUsed, setHintUsed] = useState(false);
-    const [showHint, setShowHint] = useState(false);
-    const [levelUpMessage, setLevelUpMessage] = useState('');
-    const [showGeminiModal, setShowGeminiModal] = useState(false);
-    const [geminiDataCache, setGeminiDataCache] = useState({});
-    const [verbFormsCache, setVerbFormsCache] = useState({}); // <-- Кэш для новых форм
-    const [studyView, setStudyView] = useState('conjugation'); // 'conjugation' или 'forms'
+  // --- STATE ---
+  const [appState, setAppState] = useState(() => {
+    try {
+      const savedState = localStorage.getItem("germanVerbsState");
+      const initialState = {
+        unlockedLevels: ["A1"],
+        levelProgress: LEVEL_ORDER.reduce(
+          (acc, level) => ({
+            ...acc,
+            [level]: { correct: 0, total: 0, uniqueVerbs: [] },
+          }),
+          {}
+        ),
+        masteredVerbs: [],
+        lastVerbIndex: 0,
+      };
+      return savedState
+        ? { ...initialState, ...JSON.parse(savedState) }
+        : initialState;
+    } catch (error) {
+      console.error("Failed to parse state from localStorage", error);
+      return {
+        unlockedLevels: ["A1"],
+        levelProgress: {},
+        masteredVerbs: [],
+        lastVerbIndex: 0,
+      };
+    }
+  });
 
-    // --- DERIVED STATE & MEMOS ---
-    const availableVerbsForProgression = useMemo(() => allVerbs.filter(verb => appState.unlockedLevels.includes(verb.level)), [appState.unlockedLevels]);
-    const currentVerb = allVerbs[appState.lastVerbIndex];
-    const currentLevel = appState.unlockedLevels[appState.unlockedLevels.length - 1];
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [userAnswer, setUserAnswer] = useState("");
+  const [currentPronoun, setCurrentPronoun] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
+  const [showVerbList, setShowVerbList] = useState(false);
+  const [hintUsed, setHintUsed] = useState(false);
+  const [showHint, setShowHint] = useState(false);
+  const [levelUpMessage, setLevelUpMessage] = useState("");
+  const [showGeminiModal, setShowGeminiModal] = useState(false);
+  const [geminiDataCache, setGeminiDataCache] = useState({});
+  const [verbFormsCache, setVerbFormsCache] = useState({}); // <-- Кэш для новых форм
+  const [studyView, setStudyView] = useState("conjugation"); // 'conjugation' или 'forms'
 
-    // --- EFFECTS ---
-    useEffect(() => {
-        localStorage.setItem('germanVerbsState', JSON.stringify(appState));
-    }, [appState]);
+  // --- DERIVED STATE & MEMOS ---
+  const availableVerbsForProgression = useMemo(
+    () =>
+      allVerbs.filter((verb) => appState.unlockedLevels.includes(verb.level)),
+    [appState.unlockedLevels]
+  );
+  const currentVerb = allVerbs[appState.lastVerbIndex];
+  const currentLevel =
+    appState.unlockedLevels[appState.unlockedLevels.length - 1];
 
-    useEffect(() => {
-        // Сбрасываем вид при смене режима
-        setStudyView('conjugation');
-    }, [practiceMode]);
+  // --- EFFECTS ---
+  useEffect(() => {
+    localStorage.setItem("germanVerbsState", JSON.stringify(appState));
+  }, [appState]);
 
-    // --- API & AUDIO ---
-    const speak = useCallback((text, lang = 'de-DE') => {
-        if (!audioReady || !('speechSynthesis' in window)) return;
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang;
-        utterance.rate = 0.9;
-        utterance.onstart = () => setIsSpeaking(true);
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        window.speechSynthesis.speak(utterance);
-    }, [audioReady]);
+  useEffect(() => {
+    // Сбрасываем вид при смене режима
+    setStudyView("conjugation");
+  }, [practiceMode]);
 
-    const fetchGeminiInfo = useCallback(async (verb, setter, force = false) => {
-        if (geminiDataCache[verb.infinitive] && !force) {
-            setter({ loading: false, data: geminiDataCache[verb.infinitive], error: null });
-            return;
-        }
-        setter({ loading: true, data: null, error: null });
-        
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY; // <-- ВАШ КЛЮЧ ПОДКЛЮЧАЕТСЯ ЗДЕСЬ
-        if (!apiKey) {
-            setter({ loading: false, data: null, error: "API ключ не настроен в файле .env" });
-            return;
-        }
-        
-        const prompt = `
-          Для немецкого глагола '${verb.infinitive}' (${verb.russian}), создай JSON объект.
-          Этот объект должен содержать два ключа: "verb_info" и "examples".
-          
-          1. "verb_info": объект с двумя полями:
-             - "type": тип глагола на русском ("слабый", "сильный" или "смешанный").
-             - "regularity": на русском ("правильный" или "неправильный").
-          
-          2. "examples": массив примеров. Создай по одному примеру для каждого местоимения: ich, du, er/sie/es, wir, ihr, sie/Sie.
-          
-          Каждый элемент в массиве "examples" должен быть объектом со следующей структурой:
-          - "pronoun": "ich" (например)
-          - "german_initial": "простое предложение в настоящем времени БЕЗ МЕСТОИМЕНИЯ, где глагол или его части обернуты в теги <b></b>."
-          - "russian": "полный перевод этого предложения"
-          - "forms": вложенный объект, содержащий 3 времени (present, past, future), где глаголы также обернуты в <b></b>.
+  // --- API & AUDIO ---
+  const speak = useCallback(
+    (text, lang = "de-DE") => {
+      if (!audioReady || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.9;
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis.speak(utterance);
+    },
+    [audioReady]
+  );
 
-          Структура объекта "forms":
-          - "present": { "question": "...", "affirmative": "...", "negative": "..." }
-          - "past": { "question": "...", "affirmative": "...", "negative": "..." } (используй Perfekt)
-          - "future": { "question": "...", "affirmative": "...", "negative": "..." } (используй Futur I)
+  // --- LOGIC ---
+  const speakFullPhrase = (pronounIndex) => {
+    const pronoun = pronouns[pronounIndex];
+    const verbForm = currentVerb.forms[pronounIndex];
+    speak(`${pronoun.base || pronoun.german} ${verbForm}`);
+  };
 
-          Пример для "ich komme":
-          {
-            "verb_info": { "type": "сильный", "regularity": "неправильный" },
-            "examples": [
-              {
-                "pronoun": "ich",
-                "german_initial": "<b>komme</b> nach Hause.",
-                "russian": "Я иду домой.",
-                "forms": {
-                  "present": { "question": "<b>Komme</b> ich nach Hause?", "affirmative": "Ich <b>komme</b> nach Hause.", "negative": "Ich <b>komme</b> nicht nach Hause." },
-                  "past": { "question": "<b>Bin</b> ich nach Hause <b>gekommen</b>?", "affirmative": "Ich <b>bin</b> nach Hause <b>gekommen</b>.", "negative": "Ich <b>bin</b> nicht nach Hause <b>gekommen</b>." },
-                  "future": { "question": "<b>Werde</b> ich nach Hause <b>kommen</b>?", "affirmative": "Ich <b>werde</b> nach Hause <b>kommen</b>.", "negative": "Ich <b>werde</b> nicht nach Hause <b>kommen</b>." }
-                }
-              }
-            ]
-          }
-          Создай полный JSON с такой структурой для всех местоимений для глагола '${verb.infinitive}'.
-        `;
-        
-        const payload = { 
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+  const checkLevelUp = useCallback(
+    (level) => {
+      const progress = appState.levelProgress[level];
+      const nextLevelIndex = LEVEL_ORDER.indexOf(level) + 1;
+      if (
+        nextLevelIndex >= LEVEL_ORDER.length ||
+        appState.unlockedLevels.includes(LEVEL_ORDER[nextLevelIndex])
+      )
+        return;
 
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API Error: ${response.status} ${response.statusText}`);
-            const result = await response.json();
-            
-            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                throw new Error("Пустой или некорректный ответ от Gemini.");
-            }
-            
-            let parsedJson;
-            try {
-               parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
-            } catch (e) {
-                console.error("Failed to parse JSON from Gemini:", result.candidates[0].content.parts[0].text);
-                throw new Error("Не удалось обработать ответ от Gemini (неверный JSON).");
-            }
+      const accuracy =
+        progress.total > 0 ? progress.correct / progress.total : 0;
 
-            if (Array.isArray(parsedJson)) parsedJson = parsedJson[0];
-            
-            if (!parsedJson || !parsedJson.examples || !Array.isArray(parsedJson.examples)) {
-                throw new Error("Некорректный формат данных от Gemini.");
-            }
-
-            setGeminiDataCache(prev => ({...prev, [verb.infinitive]: parsedJson}));
-            setter({ loading: false, data: parsedJson, error: null });
-        } catch (error) {
-            console.error("Fetch Gemini Info Error:", error);
-            setter({ loading: false, data: null, error: error.message || "Не удалось получить данные от Gemini." });
-        }
-    }, [geminiDataCache]);
-
-    // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА ОСНОВНЫХ ФОРМ ГЛАГОЛА ---
-    const fetchVerbForms = useCallback(async (verb, pronoun, setter) => {
-        const pronounKey = pronoun.base;
-        const pronounDisplay = pronoun.german;
-        
-        // Проверяем кэш
-        if (verbFormsCache[verb.infinitive] && verbFormsCache[verb.infinitive][pronounKey]) {
-            setter({ loading: false, data: verbFormsCache[verb.infinitive][pronounKey], error: null });
-            return;
-        }
-        setter({ loading: true, data: null, error: null });
-
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        if (!apiKey) {
-            setter({ loading: false, data: null, error: "API ключ не настроен." });
-            return;
-        }
-
-        const prompt = `
-            Для немецкого глагола "${verb.infinitive}" и местоимения "${pronounDisplay}", создай JSON объект с его формами в разных временах.
-            Используй "${pronounDisplay}" в тексте ответа.
-
-            Объект должен иметь ключ "forms", который содержит три вложенных объекта: "present", "past" и "future".
-            Каждый из этих объектов должен содержать три строковых поля: "question", "affirmative", "negative".
-
-            - Для "past" используй время Perfekt.
-            - Для "future" используй время Futur I.
-            - В каждой строке выдели сам глагол или его изменяемые части тегом <b></b>.
-
-            Пример для глагола "gehen" и местоимения "er/sie/es":
-            {
-              "forms": {
-                "present": {
-                  "question": "<b>Geht</b> er/sie/es?",
-                  "affirmative": "Er/sie/es <b>geht</b>.",
-                  "negative": "Er/sie/es <b>geht</b> nicht."
-                },
-                "past": {
-                  "question": "<b>Ist</b> er/sie/es <b>gegangen</b>?",
-                  "affirmative": "Er/sie/es <b>ist</b> <b>gegangen</b>.",
-                  "negative": "Er/sie/es <b>ist</b> nicht <b>gegangen</b>."
-                },
-                "future": {
-                  "question": "<b>Wird</b> er/sie/es <b>gehen</b>?",
-                  "affirmative": "Er/sie/es <b>wird</b> <b>gehen</b>.",
-                  "negative": "Er/sie/es <b>wird</b> nicht <b>gehen</b>."
-                }
-              }
-            }
-
-            Сгенерируй такой JSON для глагола "${verb.infinitive}" и местоимения "${pronounDisplay}".
-        `;
-
-        const payload = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-            const result = await response.json();
-            
-            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                throw new Error("Пустой ответ от Gemini для форм глагола.");
-            }
-            
-            const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
-            // Обновляем вложенный кэш
-            setVerbFormsCache(prev => ({ 
-                ...prev, 
-                [verb.infinitive]: {
-                    ...prev[verb.infinitive],
-                    [pronounKey]: parsedJson
-                }
-            }));
-            setter({ loading: false, data: parsedJson, error: null });
-
-        } catch (error) {
-            console.error("Fetch Verb Forms Error:", error);
-            setter({ loading: false, data: null, error: "Не удалось загрузить формы." });
-        }
-    }, [verbFormsCache]);
-
-
-    // --- LOGIC ---
-    const speakFullPhrase = (pronounIndex) => {
-        const pronoun = pronouns[pronounIndex];
-        const verbForm = currentVerb.forms[pronounIndex];
-        speak(`${pronoun.base || pronoun.german} ${verbForm}`);
-    };
-
-    const checkLevelUp = useCallback((level) => {
-        const progress = appState.levelProgress[level];
-        const nextLevelIndex = LEVEL_ORDER.indexOf(level) + 1;
-        if (nextLevelIndex >= LEVEL_ORDER.length || appState.unlockedLevels.includes(LEVEL_ORDER[nextLevelIndex])) return;
-        
-        const accuracy = progress.total > 0 ? progress.correct / progress.total : 0;
-        
-        if (progress.uniqueVerbs.length >= LEVEL_UP_REQUIREMENTS.correctAnswers && accuracy >= LEVEL_UP_REQUIREMENTS.accuracy) {
-            setAppState(prev => ({...prev, unlockedLevels: [...prev.unlockedLevels, LEVEL_ORDER[nextLevelIndex]]}));
-            setLevelUpMessage(`Поздравляем! Вы открыли уровень ${LEVEL_ORDER[nextLevelIndex]}!`);
-            setTimeout(() => setLevelUpMessage(''), 5000);
-        }
-    }, [appState.levelProgress, appState.unlockedLevels]);
-
-    const checkAnswer = () => {
-        const correctAnswer = currentVerb.forms[currentPronoun];
-        const isCorrect = userAnswer.toLowerCase().trim() === correctAnswer;
-        
-        if (isCorrect) {
-            setFeedback('Правильно! ✓');
-            speakFullPhrase(currentPronoun);
-            
-            if (!hintUsed) {
-                const newMasterySet = new Set(appState.masteredVerbs).add(currentVerb.infinitive);
-                if (newMasterySet.size > appState.masteredVerbs.length) {
-                     setAppState(prev => ({...prev, masteredVerbs: [...newMasterySet]}));
-                }
-            }
-            
-            const verbLevel = currentVerb.level;
-            setAppState(prev => {
-                const newProgress = { ...prev.levelProgress };
-                newProgress[verbLevel].correct += 1;
-                newProgress[verbLevel].total += 1;
-                if (!newProgress[verbLevel].uniqueVerbs.includes(currentVerb.infinitive)) {
-                     newProgress[verbLevel].uniqueVerbs.push(currentVerb.infinitive);
-                }
-                checkLevelUp(verbLevel);
-                return {...prev, levelProgress: newProgress };
-            });
-
-            setTimeout(() => {
-                setFeedback('');
-                setShowHint(false);
-                const nextPronounIndex = (currentPronoun + 1) % pronouns.length;
-                setCurrentPronoun(nextPronounIndex);
-                setUserAnswer('');
-            }, 1500);
-        } else {
-            setFeedback(`Неверно. Правильный ответ: ${correctAnswer}`);
-            const verbLevel = currentVerb.level;
-            setAppState(prev => {
-                const newProgress = { ...prev.levelProgress };
-                newProgress[verbLevel].total += 1;
-                if (!newProgress[verbLevel].uniqueVerbs.includes(currentVerb.infinitive)) {
-                     newProgress[verbLevel].uniqueVerbs.push(currentVerb.infinitive);
-                }
-                checkLevelUp(verbLevel);
-                return {...prev, levelProgress: newProgress };
-            });
-        }
-    };
-
-    const handleHint = () => {
-        setShowHint(true);
-        setHintUsed(true); 
-    };
-
-    const resetVerbState = () => {
-        setUserAnswer('');
-        setFeedback('');
-        setCurrentPronoun(0);
-        setHintUsed(false);
-        setShowHint(false);
-    };
-    
-    const selectVerb = (verb) => {
-        const verbIndex = allVerbs.findIndex(v => v.infinitive === verb.infinitive);
-        if (verbIndex !== -1) {
-            setAppState(prev => ({...prev, lastVerbIndex: verbIndex}));
-            setPracticeMode(false); 
-            resetVerbState();
-            setShowVerbList(false);
-        }
-    };
-    
-    const resetAllProgress = () => {
-        localStorage.removeItem('germanVerbsState');
-        window.location.reload();
-    };
-    
-    const changeVerb = (direction) => {
-        const currentIndexInAvailable = availableVerbsForProgression.findIndex(v => v.infinitive === currentVerb.infinitive);
-        let nextIndexInAvailable;
-
-        if (direction === 1) {
-             nextIndexInAvailable = (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
-        } else {
-             nextIndexInAvailable = (currentIndexInAvailable - 1 + availableVerbsForProgression.length) % availableVerbsForProgression.length;
-        }
-
-        const nextVerbInfinitive = availableVerbsForProgression[nextIndexInAvailable].infinitive;
-        const newMasterIndex = allVerbs.findIndex(v => v.infinitive === nextVerbInfinitive);
-
-        setAppState(prev => ({...prev, lastVerbIndex: newMasterIndex}));
-        resetVerbState();
-        if (autoPlay) { setTimeout(() => speak(allVerbs[newMasterIndex].infinitive), 100); }
-    };
-    
-    const handleKeyPress = (e) => { if (e.key === 'Enter' && userAnswer.trim()) checkAnswer(); };
-
-    // --- RENDER ---
-    if (!audioReady) { 
-        return (
-            <div className="start-screen">
-                <div className="start-box"><h1>Тренажер немецких глаголов</h1><p>Нажмите, чтобы начать и активировать звук.</p><button onClick={() => setAudioReady(true)}>Начать</button></div>
-            </div>
+      if (
+        progress.uniqueVerbs.length >= LEVEL_UP_REQUIREMENTS.correctAnswers &&
+        accuracy >= LEVEL_UP_REQUIREMENTS.accuracy
+      ) {
+        setAppState((prev) => ({
+          ...prev,
+          unlockedLevels: [...prev.unlockedLevels, LEVEL_ORDER[nextLevelIndex]],
+        }));
+        setLevelUpMessage(
+          `Поздравляем! Вы открыли уровень ${LEVEL_ORDER[nextLevelIndex]}!`
         );
-     }
+        setTimeout(() => setLevelUpMessage(""), 5000);
+      }
+    },
+    [appState.levelProgress, appState.unlockedLevels]
+  );
 
+  const checkAnswer = () => {
+    const correctAnswer = currentVerb.forms[currentPronoun];
+    const isCorrect = userAnswer.toLowerCase().trim() === correctAnswer;
+
+    if (isCorrect) {
+      setFeedback("Правильно! ✓");
+      speakFullPhrase(currentPronoun);
+
+      if (!hintUsed) {
+        const newMasterySet = new Set(appState.masteredVerbs).add(
+          currentVerb.infinitive
+        );
+        if (newMasterySet.size > appState.masteredVerbs.length) {
+          setAppState((prev) => ({
+            ...prev,
+            masteredVerbs: [...newMasterySet],
+          }));
+        }
+      }
+
+      const verbLevel = currentVerb.level;
+      setAppState((prev) => {
+        const newProgress = { ...prev.levelProgress };
+        newProgress[verbLevel].correct += 1;
+        newProgress[verbLevel].total += 1;
+        if (
+          !newProgress[verbLevel].uniqueVerbs.includes(currentVerb.infinitive)
+        ) {
+          newProgress[verbLevel].uniqueVerbs.push(currentVerb.infinitive);
+        }
+        checkLevelUp(verbLevel);
+        return { ...prev, levelProgress: newProgress };
+      });
+
+      setTimeout(() => {
+        setFeedback("");
+        setShowHint(false);
+        const nextPronounIndex = (currentPronoun + 1) % pronouns.length;
+        setCurrentPronoun(nextPronounIndex);
+        setUserAnswer("");
+      }, 1500);
+    } else {
+      setFeedback(`Неверно. Правильный ответ: ${correctAnswer}`);
+      const verbLevel = currentVerb.level;
+      setAppState((prev) => {
+        const newProgress = { ...prev.levelProgress };
+        newProgress[verbLevel].total += 1;
+        if (
+          !newProgress[verbLevel].uniqueVerbs.includes(currentVerb.infinitive)
+        ) {
+          newProgress[verbLevel].uniqueVerbs.push(currentVerb.infinitive);
+        }
+        checkLevelUp(verbLevel);
+        return { ...prev, levelProgress: newProgress };
+      });
+    }
+  };
+
+  const handleHint = () => {
+    setShowHint(true);
+    setHintUsed(true);
+  };
+
+  const resetVerbState = () => {
+    setUserAnswer("");
+    setFeedback("");
+    setCurrentPronoun(0);
+    setHintUsed(false);
+    setShowHint(false);
+  };
+
+  const selectVerb = (verb) => {
+    const verbIndex = allVerbs.findIndex(
+      (v) => v.infinitive === verb.infinitive
+    );
+    if (verbIndex !== -1) {
+      setAppState((prev) => ({ ...prev, lastVerbIndex: verbIndex }));
+      setPracticeMode(false);
+      resetVerbState();
+      setShowVerbList(false);
+    }
+  };
+
+  const resetAllProgress = () => {
+    localStorage.removeItem("germanVerbsState");
+    window.location.reload();
+  };
+
+  const changeVerb = (direction) => {
+    const currentIndexInAvailable = availableVerbsForProgression.findIndex(
+      (v) => v.infinitive === currentVerb.infinitive
+    );
+    let nextIndexInAvailable;
+
+    if (direction === 1) {
+      nextIndexInAvailable =
+        (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
+    } else {
+      nextIndexInAvailable =
+        (currentIndexInAvailable - 1 + availableVerbsForProgression.length) %
+        availableVerbsForProgression.length;
+    }
+
+    const nextVerbInfinitive =
+      availableVerbsForProgression[nextIndexInAvailable].infinitive;
+    const newMasterIndex = allVerbs.findIndex(
+      (v) => v.infinitive === nextVerbInfinitive
+    );
+
+    setAppState((prev) => ({ ...prev, lastVerbIndex: newMasterIndex }));
+    resetVerbState();
+    if (autoPlay) {
+      setTimeout(() => speak(allVerbs[newMasterIndex].infinitive), 100);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === "Enter" && userAnswer.trim()) checkAnswer();
+  };
+
+  // Обёртка для передачи в VerbFormsDisplay
+  const handleFetchVerbForms = (verb, pronoun, setter) => {
+    fetchVerbForms({
+      verb,
+      pronoun,
+      verbFormsCache,
+      setVerbFormsCache,
+      setter,
+    });
+  };
+
+  // Обёртка для передачи в GeminiInfoModal
+  const handleFetchGeminiInfo = (verb, setter, force) => {
+    fetchGeminiInfo({ verb, geminiDataCache, setGeminiDataCache, setter, force });
+  };
+
+  // --- RENDER ---
+  if (!audioReady) {
     return (
-        <>
-            <LevelUpToast message={levelUpMessage} onDismiss={() => setLevelUpMessage('')} />
-            <GeminiInfoModal key={currentVerb.infinitive} show={showGeminiModal} onClose={() => setShowGeminiModal(false)} verb={currentVerb} onFetch={fetchGeminiInfo} speak={speak} isSpeaking={isSpeaking} />
-            <VerbListModal show={showVerbList} onClose={() => setShowVerbList(false)} onSelectVerb={selectVerb} verbs={allVerbs} masteredVerbs={appState.masteredVerbs} />
-            <SettingsModal show={showSettings} onClose={() => setShowSettings(false)} autoPlay={autoPlay} setAutoPlay={setAutoPlay} onResetProgress={resetAllProgress} />
-            
-            <div className="app-container">
-                <div className="main-card">
-                    <div className="main-card-header">
-                        <header className="app-header">
-                            <div className={`level-badge level-${currentLevel.toLowerCase()}`}>{currentLevel}</div>
-                            <div className="mode-toggle">
-                                <div className="toggle-group">
-                                    <button onClick={() => setPracticeMode(false)} className={!practiceMode ? 'active' : ''}>Изучение</button>
-                                    <button onClick={() => setPracticeMode(true)} className={practiceMode ? 'active' : ''}>Практика</button>
-                                </div>
-                            </div>
-                            <div className="header-icons">
-                                <button onClick={() => setShowVerbList(true)} title="Список глаголов" className="header-icon-btn"><List /></button>
-                                <button onClick={() => setShowSettings(true)} title="Настройки" className="header-icon-btn"><Settings /></button>
-                            </div>
-                        </header>
-                        
-                        <div className="verb-navigation">
-                            <button onClick={() => changeVerb(-1)} className="nav-btn"><ChevronLeft /></button>
-                            <div className="verb-display">
-                                <h2>{currentVerb.infinitive}</h2>
-                                <p>{currentVerb.russian}</p>
-                            </div>
-                            <button onClick={() => changeVerb(1)} className="nav-btn"><ChevronRight /></button>
-                        </div>
-                    </div>
-                    
-                    <div className="main-card-body">
-                        {practiceMode ? (
-                            <div className="practice-box">
-                                <div className="practice-prompt"><p>Как спрягается <strong>{currentVerb.infinitive}</strong> с местоимением <strong>{pronouns[currentPronoun].german}</strong>?</p></div>
-                                <div className="practice-input-group">
-                                    <span>{pronouns[currentPronoun].german}</span>
-                                    <input type="text" value={userAnswer} onChange={(e) => setUserAnswer(e.target.value)} onKeyPress={handleKeyPress} placeholder="Форма глагола" autoFocus />
-                                    <button onClick={checkAnswer} disabled={!userAnswer.trim()}><Check /></button>
-                                </div>
-                                {feedback && (<div className={`feedback-box ${feedback.includes('Правильно') ? 'correct' : 'incorrect'}`}>{feedback}</div>)}
-                                <div className="hint-container">
-                                    {showHint ? (
-                                        <div className="hint-box">
-                                            {pronouns[currentPronoun].german} {currentVerb.forms[currentPronoun]}
-                                        </div>
-                                    ) : (
-                                        <button className="hint-btn" onClick={handleHint} title="Показать подсказку">
-                                            <Lightbulb size={20} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                           <>
-                                <div className="study-view-toggle">
-                                    <button onClick={() => setStudyView('conjugation')} className={studyView === 'conjugation' ? 'active' : ''}>Спряжение</button>
-                                    <button onClick={() => setStudyView('forms')} className={studyView === 'forms' ? 'active' : ''}>Формы</button>
-                                </div>
+      <div className="start-screen">
+        <div className="start-box">
+          <h1>Тренажер немецких глаголов</h1>
+          <p>Нажмите, чтобы начать и активировать звук.</p>
+          <button onClick={() => setAudioReady(true)}>Начать</button>
+        </div>
+      </div>
+    );
+  }
 
-                                {studyView === 'conjugation' ? (
-                                    <div className="table-container">
-                                        <table>
-                                            <tbody>
-                                                {pronouns.map((pronoun, index) => (
-                                                    <tr key={pronoun.german}>
-                                                        <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
-                                                        <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
-                                                        <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <VerbFormsDisplay 
-                                        verb={currentVerb}
-                                        speak={speak}
-                                        isSpeaking={isSpeaking}
-                                        fetchVerbForms={fetchVerbForms}
-                                    />
-                                )}
-                           </>
-                        )}
-                    </div>
+  return (
+    <>
+      <LevelUpToast
+        message={levelUpMessage}
+        onDismiss={() => setLevelUpMessage("")}
+      />
+      <GeminiInfoModal
+        key={currentVerb.infinitive}
+        show={showGeminiModal}
+        onClose={() => setShowGeminiModal(false)}
+        verb={currentVerb}
+        onFetch={handleFetchGeminiInfo}
+        speak={speak}
+        isSpeaking={isSpeaking}
+      />
+      <VerbListModal
+        show={showVerbList}
+        onClose={() => setShowVerbList(false)}
+        onSelectVerb={selectVerb}
+        verbs={allVerbs}
+        masteredVerbs={appState.masteredVerbs}
+      />
+      <SettingsModal
+        show={showSettings}
+        onClose={() => setShowSettings(false)}
+        autoPlay={autoPlay}
+        setAutoPlay={setAutoPlay}
+        onResetProgress={resetAllProgress}
+      />
+
+      <div className="app-container">
+        <div className="main-card">
+          <div className="main-card-header">
+            <header className="app-header">
+              <div
+                className={`level-badge level-${currentLevel.toLowerCase()}`}
+              >
+                {currentLevel}
+              </div>
+              <div className="mode-toggle">
+                <div className="toggle-group">
+                  <button
+                    onClick={() => setPracticeMode(false)}
+                    className={!practiceMode ? "active" : ""}
+                  >
+                    Изучение
+                  </button>
+                  <button
+                    onClick={() => setPracticeMode(true)}
+                    className={practiceMode ? "active" : ""}
+                  >
+                    Практика
+                  </button>
                 </div>
-            </div>
+              </div>
+              <div className="header-icons">
+                <button
+                  onClick={() => setShowVerbList(true)}
+                  title="Список глаголов"
+                  className="header-icon-btn"
+                >
+                  <List />
+                </button>
+                <button
+                  onClick={() => setShowSettings(true)}
+                  title="Настройки"
+                  className="header-icon-btn"
+                >
+                  <Settings />
+                </button>
+              </div>
+            </header>
 
-            <div className="fab-container">
-                <button onClick={() => speak(currentVerb.infinitive)} disabled={isSpeaking} className="fab-button speak-fab"><Volume2 /></button>
-                <button onClick={() => setShowGeminiModal(true)} title="Узнать больше" className="fab-button gemini-fab"><Sparkles /></button>
+            <div className="verb-navigation">
+              <button onClick={() => changeVerb(-1)} className="nav-btn">
+                <ChevronLeft />
+              </button>
+              <div className="verb-display">
+                <h2>{currentVerb.infinitive}</h2>
+                <p>{currentVerb.russian}</p>
+              </div>
+              <button onClick={() => changeVerb(1)} className="nav-btn">
+                <ChevronRight />
+              </button>
             </div>
-            
-            <style>{`
-                /* --- General Setup & Variables --- */
+          </div>
+
+          <div className="main-card-body">
+            {practiceMode ? (
+              <div className="practice-box">
+                <div className="practice-prompt">
+                  <p>
+                    Как спрягается <strong>{currentVerb.infinitive}</strong> с
+                    местоимением{" "}
+                    <strong>{pronouns[currentPronoun].german}</strong>?
+                  </p>
+                </div>
+                <div className="practice-input-group">
+                  <span>{pronouns[currentPronoun].german}</span>
+                  <input
+                    type="text"
+                    value={userAnswer}
+                    onChange={(e) => setUserAnswer(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Форма глагола"
+                    autoFocus
+                  />
+                  <button onClick={checkAnswer} disabled={!userAnswer.trim()}>
+                    <Check />
+                  </button>
+                </div>
+                {feedback && (
+                  <div
+                    className={`feedback-box ${
+                      feedback.includes("Правильно") ? "correct" : "incorrect"
+                    }`}
+                  >
+                    {feedback}
+                  </div>
+                )}
+                <div className="hint-container">
+                  {showHint ? (
+                    <div className="hint-box">
+                      {pronouns[currentPronoun].german}{" "}
+                      {currentVerb.forms[currentPronoun]}
+                    </div>
+                  ) : (
+                    <button
+                      className="hint-btn"
+                      onClick={handleHint}
+                      title="Показать подсказку"
+                    >
+                      <Lightbulb size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="study-view-toggle">
+                  <button
+                    onClick={() => setStudyView("conjugation")}
+                    className={studyView === "conjugation" ? "active" : ""}
+                  >
+                    Спряжение
+                  </button>
+                  <button
+                    onClick={() => setStudyView("forms")}
+                    className={studyView === "forms" ? "active" : ""}
+                  >
+                    Формы
+                  </button>
+                </div>
+
+                {studyView === "conjugation" ? (
+                  <div className="table-container">
+                    <table>
+                      <tbody>
+                        {pronouns.map((pronoun, index) => (
+                          <tr key={pronoun.german}>
+                            <td className="speak-cell">
+                              <button
+                                onClick={() => speakFullPhrase(index)}
+                                disabled={isSpeaking}
+                              >
+                                <Volume2 />
+                              </button>
+                            </td>
+                            <td className="pronoun-cell">
+                              <span>{pronoun.german}</span>
+                              <span className="pronoun-russian">
+                                ({pronoun.russian})
+                              </span>
+                            </td>
+                            <td className="verb-form-cell">
+                              <div>
+                                <span>{currentVerb.forms[index]}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <VerbFormsDisplay
+                    verb={currentVerb}
+                    speak={speak}
+                    isSpeaking={isSpeaking}
+                    fetchVerbForms={handleFetchVerbForms}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="fab-container">
+        <button
+          onClick={() => speak(currentVerb.infinitive)}
+          disabled={isSpeaking}
+          className="fab-button speak-fab"
+        >
+          <Volume2 />
+        </button>
+        <button
+          onClick={() => setShowGeminiModal(true)}
+          title="Узнать больше"
+          className="fab-button gemini-fab"
+        >
+          <Sparkles />
+        </button>
+      </div>
+      {/* Стили возвращены для восстановления дизайна */}
+      <style>{`
+                /* --- Глобальные переменные и базовые стили (для всего приложения) --- */
                 :root {
                     --blue-50: #eff6ff; --blue-100: #dbeafe; --blue-600: #2563eb; --blue-700: #1d4ed8;
                     --green-50: #f0fdf4; --green-100: #dcfce7; --green-500: #22c55e; --green-600: #16a34a; --green-800: #166534;
@@ -923,7 +551,7 @@ function GermanVerbsApp() {
                 }
                 button:disabled { cursor: not-allowed; opacity: 0.5; }
 
-                /* --- Start Screen --- */
+                /* --- Стартовый экран (StartScreen) --- */
                 .start-screen {
                     position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
                     background: linear-gradient(to bottom right, var(--blue-100), var(--indigo-100));
@@ -942,7 +570,7 @@ function GermanVerbsApp() {
                 }
                 .start-box button:hover { background-color: var(--blue-700); transform: scale(1.05); }
 
-                /* --- Main App Layout --- */
+                /* --- Основной макет приложения (GermanVerbsApp) --- */
                 .app-container { max-width: 896px; margin: 0 auto; min-height: 100vh; }
                 .main-card {
                     background-color: var(--white);
@@ -970,7 +598,7 @@ function GermanVerbsApp() {
 
                 .main-card-body {
                     flex-grow: 1;
-                    overflow-y: auto;
+                    // overflow-y: auto;
                     scrollbar-width: thin;
                     scrollbar-color: var(--gray-200) transparent;
                 }
@@ -978,7 +606,7 @@ function GermanVerbsApp() {
                 .main-card-body::-webkit-scrollbar-track { background: transparent; }
                 .main-card-body::-webkit-scrollbar-thumb { background-color: var(--gray-200); border-radius: 10px; }
 
-                /* --- New Header --- */
+                /* --- Хедер приложения (GermanVerbsApp) --- */
                 .app-header {
                     display: flex; 
                     justify-content: space-between; 
@@ -1016,7 +644,7 @@ function GermanVerbsApp() {
                     .mode-toggle { order: 3; width: 100%; margin-top: 0.5rem; }
                 }
 
-                /* --- Verb Navigation & Actions --- */
+                /* --- Навигация по глаголам и действия (GermanVerbsApp) --- */
                 .verb-navigation {
                     display: flex; 
                     align-items: center;
@@ -1030,7 +658,7 @@ function GermanVerbsApp() {
                 .verb-display h2 { font-size: 2.25rem; font-weight: 700; color: var(--gray-800); margin: 0; flex-shrink: 1; min-width: 0; }
                 .verb-display p { margin: 0.25rem 0 0.5rem; color: var(--gray-500); }
 
-                /* --- Study View Toggle --- */
+                /* --- Переключатель вида изучения (GermanVerbsApp) --- */
                 .study-view-toggle {
                     display: flex;
                     justify-content: center;
@@ -1052,7 +680,7 @@ function GermanVerbsApp() {
                     background-color: var(--gray-100);
                 }
 
-                /* --- Conjugation Table (Original) --- */
+                /* --- Оригинальная таблица спряжения (GermanVerbsApp) --- */
                 .table-container { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; }
                 .table-container table { width: 100%; border-collapse: collapse; }
                 .table-container td { border: 1px solid var(--gray-200); padding: 0.75rem; }
@@ -1064,11 +692,10 @@ function GermanVerbsApp() {
                 .verb-form-cell { font-weight: 700; color: var(--blue-600); }
                 .verb-form-cell div { display: flex; align-items: center; gap: 0.5rem; }
 
-                /* --- Verb Forms Component (UI/UX Overhaul) --- */
+                /* --- Компонент VerbFormsDisplay (UI/UX Overhaul) --- */
                 .verb-forms-container {
                     display: flex;
                     flex-direction: column;
-                    gap: 1rem;
                 }
                 .table-content-wrapper {
                     min-height: 160px; /* Prevents layout jump */
@@ -1078,27 +705,21 @@ function GermanVerbsApp() {
                 }
                 .verb-forms-grid-table-wrapper {
                     overflow-x: auto;
-                    scrollbar-width: thin;
-                    scrollbar-color: var(--blue-100) transparent;
+                    /* Скрываем скроллбар во всех браузерах */
+                    scrollbar-width: none; /* Firefox */
+                    -ms-overflow-style: none; /* IE и Edge */
                     border: 1px solid var(--gray-200);
                     border-radius: 0.5rem;
                     overscroll-behavior-x: contain; /* Prevents page scroll */
                     touch-action: pan-x; /* Improves mobile scroll experience */
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar {
-                    height: 6px;
-                    width: 6px;
+                    display: none; /* Safari и Chrome */
                 }
-                .verb-forms-grid-table-wrapper::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb {
-                    background-color: var(--gray-200);
-                    border-radius: 6px;
-                }
-                 .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb:hover {
-                    background-color: var(--gray-400);
-                }
+                /* 
+                  Альтернатива: если потребуется оставить скроллбар только при наведении,
+                  можно использовать opacity, но для полной невидимости достаточно display: none.
+                */
 
                 .verb-forms-grid-table {
                     width: 100%;
@@ -1133,7 +754,7 @@ function GermanVerbsApp() {
                 }
                 .verb-forms-grid-table .sticky-col {
                     position: sticky;
-                    left: 5px;
+                    left: 0px;
                     z-index: 1;
                     width: 80px;
                 }
@@ -1151,7 +772,6 @@ function GermanVerbsApp() {
                 .verb-forms-grid-table tr:nth-child(even) td {
                     background-color: var(--gray-50);
                 }
-
 
                 .verb-forms-grid-table b {
                     color: var(--blue-600);
@@ -1225,8 +845,7 @@ function GermanVerbsApp() {
                     }
                 }
 
-
-                /* --- Practice Box --- */
+                /* --- Практика (Practice Box, внутри GermanVerbsApp) --- */
                 .practice-box { background-color: var(--green-50); border-radius: 0.5rem; padding: 1.5rem; }
                 .practice-prompt { text-align: center; margin-bottom: 1.5rem; }
                 .practice-input-group { display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; }
@@ -1251,7 +870,7 @@ function GermanVerbsApp() {
                 .hint-btn:hover { color: var(--amber-400); background-color: #fffbeb; }
                 .hint-box { padding: 0.75rem 1rem; background-color: var(--yellow-100); border-radius: 0.5rem; display: inline-block; font-weight: 500; }
 
-                /* --- Floating Action Buttons (FAB) --- */
+                /* --- Плавающие кнопки действий (FAB, GermanVerbsApp) --- */
                 .fab-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 40; display: flex; flex-direction: column; gap: 1rem; }
                 .fab-button {
                     width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
@@ -1259,9 +878,9 @@ function GermanVerbsApp() {
                 }
                 .fab-button.speak-fab { background-color: var(--blue-600); }
                 .fab-button.gemini-fab { background-color: var(--purple-500); }
-                .fab-button:hover { transform: scale(1.05); filter: brightness(1.1); }
+                .fab-button:hover { transform: scale(1.05); filter: brightness(1.1); opacity: 100}
 
-                /* --- Modals & Toasts --- */
+                /* --- Модальные окна и тосты (GeminiInfoModal, SettingsModal, VerbListModal, LevelUpToast) --- */
                 .modal-overlay {
                     position: fixed; inset: 0; background-color: var(--black-t60);
                     display: flex; align-items: center; justify-content: center;
@@ -1274,15 +893,32 @@ function GermanVerbsApp() {
                     animation: scaleIn 0.3s ease;
                 }
                 .modal-close-btn {
-                    position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.5rem;
+                    position: absolute; top: 1rem; right: 1rem; padding: 1rem;
                     color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
-                .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
+                .modal-title { margin-top: 0; font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
                 .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
-                .modal-body-container { flex-grow: 1; padding: 0.5rem 1.5rem; overflow-y: auto; padding-bottom: 5rem; }
-                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); }
+                .modal-body-container { overflow-y: auto; padding-bottom: 5rem; }
+
+                /* Скрываем скроллбар для всех элементов, чтобы он не отображался визуально */
+                ::-webkit-scrollbar {
+                    width: 0px;
+                    background: transparent; /* делаем фон прозрачным */
+                }
+                /* Для Firefox */
+                * {
+                    scrollbar-width: none; /* полностью скрываем скроллбар */
+                    -ms-overflow-style: none; /* для IE и Edge */
+                }
+
+                .verbs-list-modal-footer {
+                  hefight: 20px;
+                  background-color: red
+                }
+
+                .loader-container {display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -1313,7 +949,7 @@ function GermanVerbsApp() {
                 .regenerate-btn-footer:hover { background-color: var(--blue-700); }
                 .regenerate-btn-footer:disabled { background-color: var(--gray-400); }
                 
-                /* --- Settings/Info Modal --- */
+                /* --- Вкладки настроек и инфо (SettingsModal) --- */
                 .settings-tabs { display: flex; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem 0 1.5rem; }
                 .settings-tabs button {
                     padding: 0.5rem 1rem; border-bottom: 2px solid transparent;
@@ -1329,32 +965,47 @@ function GermanVerbsApp() {
                 .info-tab td { padding: 0.5rem; border: 1px solid var(--gray-200); }
                 .info-tab td:first-child { font-weight: 600; }
 
-                /* --- Verb List Modal --- */
-                .verb-list-modal .modal-body-container { padding: 0; }
-                .verb-list-header { padding: 1rem 1rem 0.75rem 1rem; border-bottom: 1px solid var(--gray-200); }
-                .verb-list-header .modal-title { padding: 0 0 0.75rem 0; text-transform: none; }
+                /* --- Модальное окно списка глаголов (VerbListModal) --- */
+                .verb-list-modal .modal-body-container { width: 95vw; padding: 0; background-color: white; max-height: 83dvh; border-radius: 0 0 20px 25px; }
+                .verb-list-header { border-bottom: 1px solid var(--gray-200); background-color: white; border-radius: 20px 20px 0 0;}
+                .verb-list-header .modal-title { text-transform: none; }
                 .search-bar { position: relative; }
                 .search-bar svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
                 .search-bar input {
-                    width: 100%; box-sizing: border-box; padding: 0.6rem 1rem 0.6rem 2.5rem;
+                    width: 100%; box-sizing: border-box; 
                     border: 1px solid var(--gray-200); border-radius: 0.5rem; font-size: 1rem;
                 }
+
+
+                /* Сделаем placeholder в input светлее, чтобы он был менее заметен на фоне текста.
+                   Используем ::placeholder для разных браузеров. */
+                .search-bar input::placeholder {
+                    color: rgb(211, 211, 211); /* светло-серый оттенок для placeholder */
+                    opacity: 1; /* для совместимости */
+                }
+
+
+
+
                 .search-bar input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
-                .verb-list-modal .modal-body-container { padding: 0.5rem; }
                 .level-header {
+                    margin: 0;
+                    padding: 10px 15px;
                     font-size: 0.875rem; font-weight: 600; color: var(--gray-500);
-                    padding: 0.75rem 0.5rem 0.25rem; position: sticky; top: 0;
+                    font-weight: 700;
+                    position: sticky; top: 0px;
                     background-color: var(--white);
+                    background-color:rgb(246, 246, 246);
                 }
                 .verb-list { list-style: none; padding: 0; margin: 0; }
-                .verb-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0.5rem; border-radius: 0.375rem; cursor: pointer; }
+                .verb-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; border-radius: 0.375rem; cursor: pointer; }
                 .verb-list li:hover { background-color: var(--blue-50); }
                 .verb-translation { color: var(--gray-500); font-size: 0.875rem; margin-left: 0.5rem; }
                 .check-mark { color: var(--green-500); }
                 .no-results { text-align: center; padding: 2rem; color: var(--gray-500); }
                 .error-box { background-color: var(--red-100); color: var(--red-700); padding: 1rem; border-radius: 0.5rem; text-align: center;}
 
-                /* Reset Progress */
+                /* --- Сброс прогресса (SettingsModal) --- */
                 .reset-section { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
                 .reset-section h4 { font-weight: 600; color: var(--red-700); }
                 .reset-section p { font-size: 0.875rem; color: var(--gray-500); }
@@ -1369,6 +1020,7 @@ function GermanVerbsApp() {
                 .reset-btn-confirm { background-color: var(--red-500); color: var(--white); margin-left: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; }
                 .reset-btn-confirm:hover { background-color: var(--red-700); }
 
+                /* --- Тост повышения уровня (LevelUpToast) --- */
                 .level-up-toast {
                     position: fixed; top: 1.25rem; right: 1.25rem; background-color: var(--green-500); color: var(--white);
                     padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -1379,7 +1031,7 @@ function GermanVerbsApp() {
                 @keyframes scaleIn { from { transform: scale(0.95); } to { transform: scale(1); } }
                 @keyframes bounce-in { 0% { opacity: 0; transform: scale(0.5) translateY(-50px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 
-                /* --- Стили для аккордеона в модальном окне --- */
+                /* --- Аккордеон в модальном окне (GeminiInfoModal) --- */
                 .accordion-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
                 .accordion-item { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--gray-200); }
                 .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; cursor: pointer; user-select: none; }
@@ -1396,7 +1048,7 @@ function GermanVerbsApp() {
                 .accordion-content.active { max-height: 500px; padding: 0.5rem; }
                 .example-german b { color: var(--blue-600); font-weight: 700; }
 
-                /* --- Стили для компактной таблицы --- */
+                /* --- Компактная таблица спряжения (ConjugationTable) --- */
                 .conjugation-table-wrapper { 
                     background-color: var(--white); 
                     border-radius: 0.375rem; 
@@ -1418,8 +1070,8 @@ function GermanVerbsApp() {
                 .speak-btn-tiny { color: var(--gray-400); padding: 0.1rem; border-radius: 50%; flex-shrink: 0; }
                 .speak-btn-tiny:hover { color: var(--gray-800); background-color: var(--gray-100); }
             `}</style>
-        </>
-    );
+    </>
+  );
 }
 
 export default GermanVerbsApp;

@@ -33,10 +33,7 @@ const VerbListModal = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content verb-list-modal"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="verb-list-modal" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="modal-close-btn">
           <X />
         </button>
@@ -77,6 +74,7 @@ const VerbListModal = ({
                         </li>
                       ))}
                     </ul>
+
                   </div>
                 )
             )
@@ -84,6 +82,7 @@ const VerbListModal = ({
             <p className="no-results">Глаголы не найдены.</p>
           )}
         </div>
+
       </div>
     </div>
   );

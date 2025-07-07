@@ -91,7 +91,9 @@ const GeminiInfoModal = ({
                     <p
                       className="example-german"
                       dangerouslySetInnerHTML={{
-                        __html: `<strong class="pronoun-tag">${ex.pronoun}</strong> ${ex.german_initial}`,
+                        __html: `<strong class="pronoun-tag">${
+                          ex.pronoun
+                        }</strong>&nbsp;${ex.german_initial.trim()}`,
                       }}
                     />
                     <p className="example-russian">{ex.russian}</p>

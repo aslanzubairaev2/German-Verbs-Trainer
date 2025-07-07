@@ -118,7 +118,7 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
             <button
               key={p.german}
               ref={index === selectedPronounIndex ? activePronounRef : null}
-              className={`pronoun-selector-btn ${
+              className={`${"pronoun-selector-btn"} ${
                 index === selectedPronounIndex ? "active" : ""
               }`}
               onClick={() => handlePronounChange(index)}
