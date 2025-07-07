@@ -1,19 +1,46 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
 import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
+
+// --- ОСНОВНЫЕ ДАННЫЕ ---
+const pronouns = [
+    { german: 'ich', russian: 'я' }, { german: 'du', russian: 'ты' },
+    { german: 'er/sie/es', russian: 'он/она/оно', base: 'er' }, // 'base' для запроса к API
+    { german: 'wir', russian: 'мы' }, { german: 'ihr', russian: 'вы' },
+    { german: 'sie/Sie', russian: 'они/Вы', base: 'sie' } // 'base' для запроса к API
+];
 
 // --- ИСПРАВЛЕННЫЙ КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА ---
 const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
     const [formsInfo, setFormsInfo] = useState({ loading: true, data: null, error: null });
+    const [selectedPronounIndex, setSelectedPronounIndex] = useState(0);
+    const pronounContainerRef = useRef(null);
+    const activePronounRef = useRef(null);
 
+    const handlePronounChange = (index) => {
+        setSelectedPronounIndex(index);
+    };
+
+    // Эффект для загрузки данных при смене глагола или местоимения
     useEffect(() => {
-        // Запрашиваем данные при монтировании или смене глагола
-        fetchVerbForms(verb, setFormsInfo);
-    }, [verb, fetchVerbForms]);
+        const selectedPronoun = pronouns[selectedPronounIndex];
+        fetchVerbForms(verb, selectedPronoun, setFormsInfo);
+    }, [verb, selectedPronounIndex, fetchVerbForms]);
+
+    // Эффект для прокрутки активного местоимения в зону видимости
+    useEffect(() => {
+        if (activePronounRef.current) {
+            activePronounRef.current.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'center',
+                block: 'nearest'
+            });
+        }
+    }, [selectedPronounIndex]);
+
 
     const renderCellContent = (text) => {
         if (!text || text === '-') return '-';
-        // Убираем теги для озвучки
         const cleanText = text.replace(/<\/?[^>]+(>|$)/g, "");
         return (
             <div className="table-cell-content">
@@ -28,62 +55,66 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
         );
     };
     
+    let content;
     if (formsInfo.loading) {
-        return <div className="loader-container"><LoaderCircle className="loader" /><p>Загрузка форм...</p></div>;
+        content = <div className="loader-container"><LoaderCircle className="loader" /><p>Загрузка форм...</p></div>;
+    } else if (formsInfo.error) {
+        content = <div className="error-box">{formsInfo.error}</div>;
+    } else if (!formsInfo.data || !formsInfo.data.forms) {
+        content = <div className="error-box">Не удалось загрузить формы глагола.</div>;
+    } else {
+        const { present, past, future } = formsInfo.data.forms;
+        const tenses = [
+            { key: 'present', name: 'Наст.', data: present },
+            { key: 'past', name: 'Прош.', data: past },
+            { key: 'future', name: 'Будущ.', data: future },
+        ];
+        content = (
+             <div className="verb-forms-grid-table-wrapper">
+                <table className="verb-forms-grid-table">
+                    <thead>
+                        <tr>
+                            <th>Время</th>
+                            <th>Утверждение (+)</th>
+                            <th>Отрицание (-)</th>
+                            <th>Вопрос (?)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {tenses.map(tense => (
+                            tense.data ? (
+                                <tr key={tense.key}>
+                                    <td>{tense.name}</td>
+                                    <td>{renderCellContent(tense.data.affirmative)}</td>
+                                    <td>{renderCellContent(tense.data.negative)}</td>
+                                    <td>{renderCellContent(tense.data.question)}</td>
+                                </tr>
+                            ) : null
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
     }
-
-    if (formsInfo.error) {
-        return <div className="error-box">{formsInfo.error}</div>;
-    }
-
-    if (!formsInfo.data || !formsInfo.data.forms) {
-        return <div className="error-box">Не удалось загрузить формы глагола.</div>;
-    }
-
-    const { present, past, future } = formsInfo.data.forms;
-    const tenses = [
-        { key: 'present', name: 'Настоящее', data: present },
-        { key: 'past', name: 'Прошедшее (Perfekt)', data: past },
-        { key: 'future', name: 'Будущее (Futur I)', data: future },
-    ];
 
     return (
         <div className="verb-forms-container">
-            <table className="verb-forms-grid-table">
-                <thead>
-                    <tr>
-                        <th>Время</th>
-                        <th>Утверждение (+)</th>
-                        <th>Отрицание (-)</th>
-                        <th>Вопрос (?)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {tenses.map(tense => (
-                        tense.data ? (
-                            <tr key={tense.key}>
-                                <td>{tense.name}</td>
-                                <td>{renderCellContent(tense.data.affirmative)}</td>
-                                <td>{renderCellContent(tense.data.negative)}</td>
-                                <td>{renderCellContent(tense.data.question)}</td>
-                            </tr>
-                        ) : null
-                    ))}
-                </tbody>
-            </table>
-            <p className="forms-footnote">*Все формы показаны для местоимения 'ich' (я).</p>
+            {content}
+            <div className="pronoun-selector-container" ref={pronounContainerRef}>
+                {pronouns.map((p, index) => (
+                    <button 
+                        key={p.german} 
+                        ref={index === selectedPronounIndex ? activePronounRef : null}
+                        className={`pronoun-selector-btn ${index === selectedPronounIndex ? 'active' : ''}`}
+                        onClick={() => handlePronounChange(index)}
+                    >
+                        {p.german}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 };
-
-
-// --- ОСНОВНЫЕ ДАННЫЕ ---
-const pronouns = [
-    { german: 'ich', russian: 'я' }, { german: 'du', russian: 'ты' },
-    { german: 'er', russian: 'он' }, { german: 'sie', russian: 'она' }, { german: 'es', russian: 'оно' },
-    { german: 'wir', russian: 'мы' }, { german: 'ihr', russian: 'вы' },
-    { german: 'sie', russian: 'они' }, { german: 'Sie', russian: 'Вы (вежл.)' }
-];
 
 const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2'];
 const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };
@@ -533,9 +564,11 @@ function GermanVerbsApp() {
     }, [geminiDataCache]);
 
     // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА ОСНОВНЫХ ФОРМ ГЛАГОЛА ---
-    const fetchVerbForms = useCallback(async (verb, setter) => {
-        if (verbFormsCache[verb.infinitive]) {
-            setter({ loading: false, data: verbFormsCache[verb.infinitive], error: null });
+    const fetchVerbForms = useCallback(async (verb, pronoun, setter) => {
+        const pronounKey = pronoun.base || pronoun.german;
+        // Проверяем кэш
+        if (verbFormsCache[verb.infinitive] && verbFormsCache[verb.infinitive][pronounKey]) {
+            setter({ loading: false, data: verbFormsCache[verb.infinitive][pronounKey], error: null });
             return;
         }
         setter({ loading: true, data: null, error: null });
@@ -547,36 +580,36 @@ function GermanVerbsApp() {
         }
 
         const prompt = `
-            Для немецкого глагола "${verb.infinitive}", создай JSON объект с его формами в разных временах для местоимения 'ich'.
+            Для немецкого глагола "${verb.infinitive}" и местоимения "${pronounKey}", создай JSON объект с его формами в разных временах.
             Объект должен иметь ключ "forms", который содержит три вложенных объекта: "present", "past" и "future".
             Каждый из этих объектов должен содержать три строковых поля: "question", "affirmative", "negative".
 
-            - Для "past" используй время Perfekt.
-            - Для "future" используй время Futur I.
+            - Для "past" используй время Perfekt с местоимением "${pronounKey}".
+            - Для "future" используй время Futur I с местоимением "${pronounKey}".
             - В каждой строке выдели сам глагол или его изменяемые части тегом <b></b>.
 
-            Пример для глагола "gehen":
+            Пример для глагола "gehen" и местоимения "er":
             {
               "forms": {
                 "present": {
-                  "question": "<b>Gehe</b> ich?",
-                  "affirmative": "Ich <b>gehe</b>.",
-                  "negative": "Ich <b>gehe</b> nicht."
+                  "question": "<b>Geht</b> er?",
+                  "affirmative": "Er <b>geht</b>.",
+                  "negative": "Er <b>geht</b> nicht."
                 },
                 "past": {
-                  "question": "<b>Bin</b> ich <b>gegangen</b>?",
-                  "affirmative": "Ich <b>bin</b> <b>gegangen</b>.",
-                  "negative": "Ich <b>bin</b> nicht <b>gegangen</b>."
+                  "question": "<b>Ist</b> er <b>gegangen</b>?",
+                  "affirmative": "Er <b>ist</b> <b>gegangen</b>.",
+                  "negative": "Er <b>ist</b> nicht <b>gegangen</b>."
                 },
                 "future": {
-                  "question": "<b>Werde</b> ich <b>gehen</b>?",
-                  "affirmative": "Ich <b>werde</b> <b>gehen</b>.",
-                  "negative": "Ich <b>werde</b> nicht <b>gehen</b>."
+                  "question": "<b>Wird</b> er <b>gehen</b>?",
+                  "affirmative": "Er <b>wird</b> <b>gehen</b>.",
+                  "negative": "Er <b>wird</b> nicht <b>gehen</b>."
                 }
               }
             }
 
-            Сгенерируй такой JSON для глагола "${verb.infinitive}".
+            Сгенерируй такой JSON для глагола "${verb.infinitive}" и местоимения "${pronounKey}".
         `;
 
         const payload = {
@@ -595,7 +628,14 @@ function GermanVerbsApp() {
             }
             
             const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
-            setVerbFormsCache(prev => ({ ...prev, [verb.infinitive]: parsedJson }));
+            // Обновляем вложенный кэш
+            setVerbFormsCache(prev => ({ 
+                ...prev, 
+                [verb.infinitive]: {
+                    ...prev[verb.infinitive],
+                    [pronounKey]: parsedJson
+                }
+            }));
             setter({ loading: false, data: parsedJson, error: null });
 
         } catch (error) {
@@ -607,9 +647,9 @@ function GermanVerbsApp() {
 
     // --- LOGIC ---
     const speakFullPhrase = (pronounIndex) => {
-        const pronoun = pronouns[pronounIndex].german;
+        const pronoun = pronouns[pronounIndex];
         const verbForm = currentVerb.forms[pronounIndex];
-        speak(`${pronoun} ${verbForm}`);
+        speak(`${pronoun.base || pronoun.german} ${verbForm}`);
     };
 
     const checkLevelUp = useCallback((level) => {
@@ -800,7 +840,7 @@ function GermanVerbsApp() {
                                         <table>
                                             <tbody>
                                                 {pronouns.map((pronoun, index) => (
-                                                    <tr key={index}>
+                                                    <tr key={pronoun.german}>
                                                         <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
                                                         <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
                                                         <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
@@ -833,7 +873,7 @@ function GermanVerbsApp() {
                 :root {
                     --blue-50: #eff6ff; --blue-100: #dbeafe; --blue-600: #2563eb; --blue-700: #1d4ed8;
                     --green-50: #f0fdf4; --green-100: #dcfce7; --green-500: #22c55e; --green-600: #16a34a; --green-800: #166534;
-                    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937; --gray-900: #111827;
+                    --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937; --gray-900: #111827;
                     --indigo-100: #e0e7ff; --yellow-100: #fef9c3; --red-100: #fee2e2; --red-500: #ef4444; --red-700: #b91c1c;
                     --purple-500: #a855f7; --white: #ffffff; --black-t60: rgba(0, 0, 0, 0.6);
                     --orange-400: #fb923c; --amber-400: #facc15; --lime-400: #a3e63e; --cyan-400: #22d3ee;
@@ -1000,18 +1040,36 @@ function GermanVerbsApp() {
                 .verb-form-cell { font-weight: 700; color: var(--blue-600); }
                 .verb-form-cell div { display: flex; align-items: center; gap: 0.5rem; }
 
-                /* --- Verb Forms Grid Table (NEW) --- */
+                /* --- Verb Forms Component (NEW) --- */
                 .verb-forms-container {
-                    padding: 0;
-                    background-color: var(--white); 
-                    border-radius: 0.5rem;
-                    border: 1px solid var(--gray-200);
-                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
                 }
+                .verb-forms-grid-table-wrapper {
+                    overflow-x: auto;
+                    scrollbar-width: thin;
+                    scrollbar-color: var(--blue-100) transparent;
+                }
+                .verb-forms-grid-table-wrapper::-webkit-scrollbar {
+                    height: 6px;
+                }
+                .verb-forms-grid-table-wrapper::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb {
+                    background-color: var(--blue-100);
+                    border-radius: 6px;
+                }
+                 .verb-forms-grid-table-wrapper::-webkit-scrollbar-thumb:hover {
+                    background-color: var(--blue-600);
+                }
+
                 .verb-forms-grid-table {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 0.9rem;
+                    white-space: nowrap;
                 }
                 .verb-forms-grid-table th, .verb-forms-grid-table td {
                     border: 1px solid var(--gray-200);
@@ -1034,14 +1092,34 @@ function GermanVerbsApp() {
                     color: var(--blue-600);
                     font-weight: 700;
                 }
-                .forms-footnote {
-                    text-align: center;
-                    font-size: 0.8rem;
-                    color: var(--gray-500);
-                    padding: 0.75rem;
-                    background-color: var(--gray-50);
-                    margin: 0;
+                
+                .pronoun-selector-container {
+                    display: flex;
+                    gap: 0.5rem;
+                    overflow-x: auto;
+                    padding: 0.5rem 0;
+                    scrollbar-width: none; /* Firefox */
                 }
+                .pronoun-selector-container::-webkit-scrollbar {
+                    display: none; /* Safari and Chrome */
+                }
+                .pronoun-selector-btn {
+                    padding: 0.5rem 1rem;
+                    border-radius: 9999px;
+                    font-weight: 500;
+                    font-size: 0.875rem;
+                    background-color: var(--gray-100);
+                    color: var(--gray-800);
+                    flex-shrink: 0;
+                    border: 2px solid transparent;
+                }
+                .pronoun-selector-btn.active {
+                    background-color: var(--blue-100);
+                    color: var(--blue-700);
+                    font-weight: 700;
+                    border-color: var(--blue-600);
+                }
+
 
                 /* --- Practice Box --- */
                 .practice-box { background-color: var(--green-50); border-radius: 0.5rem; padding: 1.5rem; }
