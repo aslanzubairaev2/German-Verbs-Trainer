@@ -893,10 +893,10 @@ function GermanVerbsApp() {
                     animation: scaleIn 0.3s ease;
                 }
                 .modal-close-btn {
-                    position: absolute; top: 1rem; right: 1rem; padding: 1rem;
+                    position: absolute; top: 0.5rem; right: 1rem; padding: 1rem;
                     color: var(--gray-500); z-index: 10;
                 }
-                .modal-close-btn:hover { color: var(--gray-800); background-color: var(--gray-100); border-radius: 50%;}
+                .modal-close-btn:hover { color: var(--gray-800);  border-radius: 50%;}
                 .modal-title { margin-top: 0; font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
                 .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
