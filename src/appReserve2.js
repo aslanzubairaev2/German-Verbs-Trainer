@@ -2,81 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Check, X, Volume2, Settings, Sparkles, LoaderCircle, Unlock, HelpCircle, Lightbulb, List, Search, AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
 import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 
-// --- ИСПРАВЛЕННЫЙ КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА ---
-const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
-    const [formsInfo, setFormsInfo] = useState({ loading: true, data: null, error: null });
-
-    useEffect(() => {
-        // Запрашиваем данные при монтировании или смене глагола
-        fetchVerbForms(verb, setFormsInfo);
-    }, [verb, fetchVerbForms]);
-
-    const renderCellContent = (text) => {
-        if (!text || text === '-') return '-';
-        // Убираем теги для озвучки
-        const cleanText = text.replace(/<\/?[^>]+(>|$)/g, "");
-        return (
-            <div className="table-cell-content">
-                <span dangerouslySetInnerHTML={{ __html: text }} />
-                <button 
-                    onClick={(e) => { e.stopPropagation(); speak(cleanText); }} 
-                    disabled={isSpeaking} 
-                    className="speak-btn-tiny">
-                    <Volume2 size={14} />
-                </button>
-            </div>
-        );
-    };
-    
-    if (formsInfo.loading) {
-        return <div className="loader-container"><LoaderCircle className="loader" /><p>Загрузка форм...</p></div>;
-    }
-
-    if (formsInfo.error) {
-        return <div className="error-box">{formsInfo.error}</div>;
-    }
-
-    if (!formsInfo.data || !formsInfo.data.forms) {
-        return <div className="error-box">Не удалось загрузить формы глагола.</div>;
-    }
-
-    const { present, past, future } = formsInfo.data.forms;
-    const tenses = [
-        { key: 'present', name: 'Настоящее', data: present },
-        { key: 'past', name: 'Прошедшее (Perfekt)', data: past },
-        { key: 'future', name: 'Будущее (Futur I)', data: future },
-    ];
-
-    return (
-        <div className="verb-forms-container">
-            <table className="verb-forms-grid-table">
-                <thead>
-                    <tr>
-                        <th>Время</th>
-                        <th>Утверждение (+)</th>
-                        <th>Отрицание (-)</th>
-                        <th>Вопрос (?)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {tenses.map(tense => (
-                        tense.data ? (
-                            <tr key={tense.key}>
-                                <td>{tense.name}</td>
-                                <td>{renderCellContent(tense.data.affirmative)}</td>
-                                <td>{renderCellContent(tense.data.negative)}</td>
-                                <td>{renderCellContent(tense.data.question)}</td>
-                            </tr>
-                        ) : null
-                    ))}
-                </tbody>
-            </table>
-            <p className="forms-footnote">*Все формы показаны для местоимения 'ich' (я).</p>
-        </div>
-    );
-};
-
-
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 const pronouns = [
     { german: 'ich', russian: 'я' }, { german: 'du', russian: 'ты' },
@@ -208,7 +133,7 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
                                      <tr><td>sie/Sie (они/Вы)</td><td>-en</td></tr>
                                  </tbody>
                              </table>
-                             <p>Этот тренажер поможет вам отработать и запомнить формы самых важных глаголов.</p>
+                              <p>Этот тренажер поможет вам отработать и запомнить формы самых важных глаголов.</p>
                         </div>
                     )}
                 </div>
@@ -411,8 +336,6 @@ function GermanVerbsApp() {
     const [levelUpMessage, setLevelUpMessage] = useState('');
     const [showGeminiModal, setShowGeminiModal] = useState(false);
     const [geminiDataCache, setGeminiDataCache] = useState({});
-    const [verbFormsCache, setVerbFormsCache] = useState({}); // <-- Кэш для новых форм
-    const [studyView, setStudyView] = useState('conjugation'); // 'conjugation' или 'forms'
 
     // --- DERIVED STATE & MEMOS ---
     const availableVerbsForProgression = useMemo(() => allVerbs.filter(verb => appState.unlockedLevels.includes(verb.level)), [appState.unlockedLevels]);
@@ -423,11 +346,6 @@ function GermanVerbsApp() {
     useEffect(() => {
         localStorage.setItem('germanVerbsState', JSON.stringify(appState));
     }, [appState]);
-
-    useEffect(() => {
-        // Сбрасываем вид при смене режима
-        setStudyView('conjugation');
-    }, [practiceMode]);
 
     // --- API & AUDIO ---
     const speak = useCallback((text, lang = 'de-DE') => {
@@ -531,79 +449,6 @@ function GermanVerbsApp() {
             setter({ loading: false, data: null, error: error.message || "Не удалось получить данные от Gemini." });
         }
     }, [geminiDataCache]);
-
-    // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА ОСНОВНЫХ ФОРМ ГЛАГОЛА ---
-    const fetchVerbForms = useCallback(async (verb, setter) => {
-        if (verbFormsCache[verb.infinitive]) {
-            setter({ loading: false, data: verbFormsCache[verb.infinitive], error: null });
-            return;
-        }
-        setter({ loading: true, data: null, error: null });
-
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        if (!apiKey) {
-            setter({ loading: false, data: null, error: "API ключ не настроен." });
-            return;
-        }
-
-        const prompt = `
-            Для немецкого глагола "${verb.infinitive}", создай JSON объект с его формами в разных временах для местоимения 'ich'.
-            Объект должен иметь ключ "forms", который содержит три вложенных объекта: "present", "past" и "future".
-            Каждый из этих объектов должен содержать три строковых поля: "question", "affirmative", "negative".
-
-            - Для "past" используй время Perfekt.
-            - Для "future" используй время Futur I.
-            - В каждой строке выдели сам глагол или его изменяемые части тегом <b></b>.
-
-            Пример для глагола "gehen":
-            {
-              "forms": {
-                "present": {
-                  "question": "<b>Gehe</b> ich?",
-                  "affirmative": "Ich <b>gehe</b>.",
-                  "negative": "Ich <b>gehe</b> nicht."
-                },
-                "past": {
-                  "question": "<b>Bin</b> ich <b>gegangen</b>?",
-                  "affirmative": "Ich <b>bin</b> <b>gegangen</b>.",
-                  "negative": "Ich <b>bin</b> nicht <b>gegangen</b>."
-                },
-                "future": {
-                  "question": "<b>Werde</b> ich <b>gehen</b>?",
-                  "affirmative": "Ich <b>werde</b> <b>gehen</b>.",
-                  "negative": "Ich <b>werde</b> nicht <b>gehen</b>."
-                }
-              }
-            }
-
-            Сгенерируй такой JSON для глагола "${verb.infinitive}".
-        `;
-
-        const payload = {
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API Error: ${response.status}`);
-            const result = await response.json();
-            
-            if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                throw new Error("Пустой ответ от Gemini для форм глагола.");
-            }
-            
-            const parsedJson = JSON.parse(result.candidates[0].content.parts[0].text);
-            setVerbFormsCache(prev => ({ ...prev, [verb.infinitive]: parsedJson }));
-            setter({ loading: false, data: parsedJson, error: null });
-
-        } catch (error) {
-            console.error("Fetch Verb Forms Error:", error);
-            setter({ loading: false, data: null, error: "Не удалось загрузить формы." });
-        }
-    }, [verbFormsCache]);
-
 
     // --- LOGIC ---
     const speakFullPhrase = (pronounIndex) => {
@@ -789,35 +634,19 @@ function GermanVerbsApp() {
                                 </div>
                             </div>
                         ) : (
-                           <>
-                                <div className="study-view-toggle">
-                                    <button onClick={() => setStudyView('conjugation')} className={studyView === 'conjugation' ? 'active' : ''}>Спряжение</button>
-                                    <button onClick={() => setStudyView('forms')} className={studyView === 'forms' ? 'active' : ''}>Формы</button>
-                                </div>
-
-                                {studyView === 'conjugation' ? (
-                                    <div className="table-container">
-                                        <table>
-                                            <tbody>
-                                                {pronouns.map((pronoun, index) => (
-                                                    <tr key={index}>
-                                                        <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
-                                                        <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
-                                                        <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                ) : (
-                                    <VerbFormsDisplay 
-                                        verb={currentVerb}
-                                        speak={speak}
-                                        isSpeaking={isSpeaking}
-                                        fetchVerbForms={fetchVerbForms}
-                                    />
-                                )}
-                           </>
+                            <div className="table-container">
+                                <table>
+                                    <tbody>
+                                        {pronouns.map((pronoun, index) => (
+                                            <tr key={index}>
+                                                <td className="speak-cell"><button onClick={() => speakFullPhrase(index)} disabled={isSpeaking}><Volume2 /></button></td>
+                                                <td className="pronoun-cell"><span>{pronoun.german}</span><span className="pronoun-russian">({pronoun.russian})</span></td>
+                                                <td className="verb-form-cell"><div><span>{currentVerb.forms[index]}</span></div></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -833,7 +662,7 @@ function GermanVerbsApp() {
                 :root {
                     --blue-50: #eff6ff; --blue-100: #dbeafe; --blue-600: #2563eb; --blue-700: #1d4ed8;
                     --green-50: #f0fdf4; --green-100: #dcfce7; --green-500: #22c55e; --green-600: #16a34a; --green-800: #166534;
-                    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937; --gray-900: #111827;
+                    --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937;
                     --indigo-100: #e0e7ff; --yellow-100: #fef9c3; --red-100: #fee2e2; --red-500: #ef4444; --red-700: #b91c1c;
                     --purple-500: #a855f7; --white: #ffffff; --black-t60: rgba(0, 0, 0, 0.6);
                     --orange-400: #fb923c; --amber-400: #facc15; --lime-400: #a3e63e; --cyan-400: #22d3ee;
@@ -966,32 +795,10 @@ function GermanVerbsApp() {
                 .verb-display h2 { font-size: 2.25rem; font-weight: 700; color: var(--gray-800); margin: 0; flex-shrink: 1; min-width: 0; }
                 .verb-display p { margin: 0.25rem 0 0.5rem; color: var(--gray-500); }
 
-                /* --- Study View Toggle (NEW) --- */
-                .study-view-toggle {
-                    display: flex;
-                    justify-content: center;
-                    gap: 0.5rem;
-                    margin-bottom: 1rem;
-                }
-                .study-view-toggle button {
-                    padding: 0.5rem 1rem;
-                    border-radius: 0.5rem;
-                    font-weight: 600;
-                    color: var(--gray-500);
-                    border: 2px solid transparent;
-                }
-                .study-view-toggle button.active {
-                    color: var(--blue-600);
-                    background-color: var(--blue-50);
-                }
-                .study-view-toggle button:not(.active):hover {
-                    background-color: var(--gray-100);
-                }
-
                 /* --- Table (Study Mode) --- */
                 .table-container { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; }
-                .table-container table { width: 100%; border-collapse: collapse; }
-                .table-container td { border: 1px solid var(--gray-200); padding: 0.75rem; }
+                table { width: 100%; border-collapse: collapse; }
+                td { border: 1px solid var(--gray-200); padding: 0.75rem; }
                 .speak-cell { text-align: center; width: 48px; }
                 .speak-cell button { padding: 0.25rem; color: var(--gray-500); }
                 .pronoun-cell { font-weight: 500; }
@@ -999,49 +806,6 @@ function GermanVerbsApp() {
                 @media (max-width: 640px) { .pronoun-russian { display: none; } }
                 .verb-form-cell { font-weight: 700; color: var(--blue-600); }
                 .verb-form-cell div { display: flex; align-items: center; gap: 0.5rem; }
-
-                /* --- Verb Forms Grid Table (NEW) --- */
-                .verb-forms-container {
-                    padding: 0;
-                    background-color: var(--white); 
-                    border-radius: 0.5rem;
-                    border: 1px solid var(--gray-200);
-                    overflow: hidden;
-                }
-                .verb-forms-grid-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 0.9rem;
-                }
-                .verb-forms-grid-table th, .verb-forms-grid-table td {
-                    border: 1px solid var(--gray-200);
-                    padding: 0.75rem;
-                    text-align: left;
-                    vertical-align: middle;
-                }
-                .verb-forms-grid-table thead th {
-                    background-color: var(--gray-100);
-                    font-weight: 600;
-                    color: var(--gray-900);
-                    text-align: center;
-                }
-                .verb-forms-grid-table tbody td:first-child {
-                    font-weight: 600;
-                    color: var(--gray-800);
-                    background-color: var(--gray-50);
-                }
-                .verb-forms-grid-table b {
-                    color: var(--blue-600);
-                    font-weight: 700;
-                }
-                .forms-footnote {
-                    text-align: center;
-                    font-size: 0.8rem;
-                    color: var(--gray-500);
-                    padding: 0.75rem;
-                    background-color: var(--gray-50);
-                    margin: 0;
-                }
 
                 /* --- Practice Box --- */
                 .practice-box { background-color: var(--green-50); border-radius: 0.5rem; padding: 1.5rem; }
@@ -1098,12 +862,12 @@ function GermanVerbsApp() {
                 .modal-title { font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
                 .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
-                .modal-body-container { flex-grow: 1; padding: 0.5rem 1.5rem; overflow-y: auto; padding-bottom: 5rem; }
-                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); padding: 2rem; min-height: 220px; }
+                .modal-body-container { flex-grow: 1; padding: 0.5rem 1rem; overflow-y: auto; padding-bottom: 5rem; }
+                .loader-container { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--gray-500); padding: 2rem; }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                .gemini-modal-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem 1rem 0.5rem 1.5rem; flex-shrink: 0; }
+                .gemini-modal-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem 1rem 0.5rem 1rem; flex-shrink: 0; }
                 .modal-footer {
                     padding: 1rem;
                     background-color: var(--white);
