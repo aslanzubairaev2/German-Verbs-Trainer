@@ -130,9 +130,11 @@ const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };
 
 // --- ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ ---
 
+// Модальное окно со списком глаголов, поиском и фильтрацией по уровням
 const VerbListModal = ({ show, onClose, onSelectVerb, verbs, masteredVerbs }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Фильтрация глаголов по поисковому запросу
     const filteredVerbs = useMemo(() => {
         if (!searchTerm) return verbs;
         const lowercasedFilter = searchTerm.toLowerCase();
@@ -142,6 +144,7 @@ const VerbListModal = ({ show, onClose, onSelectVerb, verbs, masteredVerbs }) =>
         );
     }, [searchTerm, verbs]);
 
+    // Группировка глаголов по уровню
     const groupedVerbs = useMemo(() => {
         return filteredVerbs.reduce((acc, verb) => {
             (acc[verb.level] = acc[verb.level] || []).push(verb);
@@ -186,10 +189,12 @@ const VerbListModal = ({ show, onClose, onSelectVerb, verbs, masteredVerbs }) =>
     );
 };
 
+// Модальное окно настроек приложения и справки
 const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }) => {
     const [activeTab, setActiveTab] = useState('settings');
     const [confirmReset, setConfirmReset] = useState(false);
     
+    // Обработка сброса прогресса
     const handleReset = () => {
         onResetProgress();
         onClose();
@@ -257,6 +262,7 @@ const SettingsModal = ({ show, onClose, autoPlay, setAutoPlay, onResetProgress }
     );
 };
 
+// Таблица спряжения глагола по временам (настоящее, прошедшее, будущее)
 const ConjugationTable = ({ forms, speak, isSpeaking }) => {
     if (!forms) return <p>Нет данных для таблицы.</p>;
 
@@ -266,6 +272,7 @@ const ConjugationTable = ({ forms, speak, isSpeaking }) => {
         { key: 'future', name: 'Будущ.' },
     ];
 
+    // Рендер ячейки с формой глагола и кнопкой озвучивания
     const renderCellContent = (text) => {
         if (!text || text === '-') return '-';
         const cleanText = text.replace(/<b>/g, '').replace(/<\/b>/g, '');
@@ -303,11 +310,12 @@ const ConjugationTable = ({ forms, speak, isSpeaking }) => {
     );
 };
 
-
+// Модальное окно с информацией и примерами от Gemini (AI), аккордеон с примерами и таблицами форм
 const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) => {
     const [geminiInfo, setGeminiInfo] = useState({ loading: false, data: null, error: null });
     const [activeIndex, setActiveIndex] = useState(null); 
     
+    // Получение данных от Gemini (AI)
     const handleFetch = useCallback((force = false) => {
         onFetch(verb, setGeminiInfo, force);
     }, [verb, onFetch]);
@@ -325,10 +333,12 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
         };
     }, [show, handleFetch]);
     
+    // Открытие/закрытие аккордеона примера
     const handleToggle = (index) => {
         setActiveIndex(activeIndex === index ? null : index);
     };
 
+    // Форматирование информации о типе глагола
     const formatVerbInfo = (info) => {
         if (!info) return null;
         const { type, regularity } = info;
@@ -413,6 +423,7 @@ const GeminiInfoModal = ({ show, onClose, verb, onFetch, speak, isSpeaking }) =>
     );
 };
 
+// Всплывающее уведомление о переходе на новый уровень
 const LevelUpToast = ({ message, onDismiss }) => {
     if (!message) return null;
     return <div className="level-up-toast"><Unlock /><span>{message}</span><button onClick={onDismiss}>&times;</button></div>;
