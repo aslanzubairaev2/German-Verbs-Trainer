@@ -4,10 +4,12 @@ import { allVerbs } from './verbsData.js'; // <-- ВАШ ФАЙЛ С ГЛАГО�
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 const pronouns = [
-    { german: 'ich', russian: 'я' }, { german: 'du', russian: 'ты' },
-    { german: 'er/sie/es', russian: 'он/она/оно', base: 'er' }, // 'base' для запроса к API
-    { german: 'wir', russian: 'мы' }, { german: 'ihr', russian: 'вы' },
-    { german: 'sie/Sie', russian: 'они/Вы', base: 'sie' } // 'base' для запроса к API
+    { german: 'ich', russian: 'я', base: 'ich' },
+    { german: 'du', russian: 'ты', base: 'du' },
+    { german: 'er/sie/es', russian: 'он/она/оно', base: 'er' }, // 'base' для логики, 'german' для отображения
+    { german: 'wir', russian: 'мы', base: 'wir' },
+    { german: 'ihr', russian: 'вы', base: 'ihr' },
+    { german: 'sie/Sie', russian: 'они/Вы', base: 'sie' }
 ];
 
 // --- ИСПРАВЛЕННЫЙ КОМПОНЕНТ ДЛЯ ОТОБРАЖЕНИЯ ФОРМ ГЛАГОЛА ---
@@ -74,7 +76,7 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
                 <table className="verb-forms-grid-table">
                     <thead>
                         <tr>
-                            <th>Время</th>
+                            <th className="sticky-col">Время</th>
                             <th>Утверждение (+)</th>
                             <th>Отрицание (-)</th>
                             <th>Вопрос (?)</th>
@@ -84,7 +86,7 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
                         {tenses.map(tense => (
                             tense.data ? (
                                 <tr key={tense.key}>
-                                    <td>{tense.name}</td>
+                                    <td className="sticky-col">{tense.name}</td>
                                     <td>{renderCellContent(tense.data.affirmative)}</td>
                                     <td>{renderCellContent(tense.data.negative)}</td>
                                     <td>{renderCellContent(tense.data.question)}</td>
@@ -99,7 +101,9 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
 
     return (
         <div className="verb-forms-container">
-            {content}
+            <div className="table-content-wrapper">
+                {content}
+            </div>
             <div className="pronoun-selector-container" ref={pronounContainerRef}>
                 {pronouns.map((p, index) => (
                     <button 
@@ -115,6 +119,7 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
         </div>
     );
 };
+
 
 const LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2'];
 const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };
@@ -565,7 +570,9 @@ function GermanVerbsApp() {
 
     // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ДЛЯ ЗАПРОСА ОСНОВНЫХ ФОРМ ГЛАГОЛА ---
     const fetchVerbForms = useCallback(async (verb, pronoun, setter) => {
-        const pronounKey = pronoun.base || pronoun.german;
+        const pronounKey = pronoun.base;
+        const pronounDisplay = pronoun.german;
+        
         // Проверяем кэш
         if (verbFormsCache[verb.infinitive] && verbFormsCache[verb.infinitive][pronounKey]) {
             setter({ loading: false, data: verbFormsCache[verb.infinitive][pronounKey], error: null });
@@ -580,36 +587,38 @@ function GermanVerbsApp() {
         }
 
         const prompt = `
-            Для немецкого глагола "${verb.infinitive}" и местоимения "${pronounKey}", создай JSON объект с его формами в разных временах.
+            Для немецкого глагола "${verb.infinitive}" и местоимения "${pronounDisplay}", создай JSON объект с его формами в разных временах.
+            Используй "${pronounDisplay}" в тексте ответа.
+
             Объект должен иметь ключ "forms", который содержит три вложенных объекта: "present", "past" и "future".
             Каждый из этих объектов должен содержать три строковых поля: "question", "affirmative", "negative".
 
-            - Для "past" используй время Perfekt с местоимением "${pronounKey}".
-            - Для "future" используй время Futur I с местоимением "${pronounKey}".
+            - Для "past" используй время Perfekt.
+            - Для "future" используй время Futur I.
             - В каждой строке выдели сам глагол или его изменяемые части тегом <b></b>.
 
-            Пример для глагола "gehen" и местоимения "er":
+            Пример для глагола "gehen" и местоимения "er/sie/es":
             {
               "forms": {
                 "present": {
-                  "question": "<b>Geht</b> er?",
-                  "affirmative": "Er <b>geht</b>.",
-                  "negative": "Er <b>geht</b> nicht."
+                  "question": "<b>Geht</b> er/sie/es?",
+                  "affirmative": "Er/sie/es <b>geht</b>.",
+                  "negative": "Er/sie/es <b>geht</b> nicht."
                 },
                 "past": {
-                  "question": "<b>Ist</b> er <b>gegangen</b>?",
-                  "affirmative": "Er <b>ist</b> <b>gegangen</b>.",
-                  "negative": "Er <b>ist</b> nicht <b>gegangen</b>."
+                  "question": "<b>Ist</b> er/sie/es <b>gegangen</b>?",
+                  "affirmative": "Er/sie/es <b>ist</b> <b>gegangen</b>.",
+                  "negative": "Er/sie/es <b>ist</b> nicht <b>gegangen</b>."
                 },
                 "future": {
-                  "question": "<b>Wird</b> er <b>gehen</b>?",
-                  "affirmative": "Er <b>wird</b> <b>gehen</b>.",
-                  "negative": "Er <b>wird</b> nicht <b>gehen</b>."
+                  "question": "<b>Wird</b> er/sie/es <b>gehen</b>?",
+                  "affirmative": "Er/sie/es <b>wird</b> <b>gehen</b>.",
+                  "negative": "Er/sie/es <b>wird</b> nicht <b>gehen</b>."
                 }
               }
             }
 
-            Сгенерируй такой JSON для глагола "${verb.infinitive}" и местоимения "${pronounKey}".
+            Сгенерируй такой JSON для глагола "${verb.infinitive}" и местоимения "${pronounDisplay}".
         `;
 
         const payload = {
@@ -1006,7 +1015,7 @@ function GermanVerbsApp() {
                 .verb-display h2 { font-size: 2.25rem; font-weight: 700; color: var(--gray-800); margin: 0; flex-shrink: 1; min-width: 0; }
                 .verb-display p { margin: 0.25rem 0 0.5rem; color: var(--gray-500); }
 
-                /* --- Study View Toggle (NEW) --- */
+                /* --- Study View Toggle --- */
                 .study-view-toggle {
                     display: flex;
                     justify-content: center;
@@ -1028,7 +1037,7 @@ function GermanVerbsApp() {
                     background-color: var(--gray-100);
                 }
 
-                /* --- Table (Study Mode) --- */
+                /* --- Conjugation Table (Original) --- */
                 .table-container { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; }
                 .table-container table { width: 100%; border-collapse: collapse; }
                 .table-container td { border: 1px solid var(--gray-200); padding: 0.75rem; }
@@ -1046,13 +1055,22 @@ function GermanVerbsApp() {
                     flex-direction: column;
                     gap: 1rem;
                 }
+                .table-content-wrapper {
+                    // min-height: 200px; /* Prevents layout jump */
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                }
                 .verb-forms-grid-table-wrapper {
                     overflow-x: auto;
                     scrollbar-width: thin;
                     scrollbar-color: var(--blue-100) transparent;
+                    border: 1px solid var(--gray-200);
+                    border-radius: 0.5rem;
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar {
                     height: 6px;
+                    width: 6px;
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar-track {
                     background: transparent;
@@ -1068,22 +1086,32 @@ function GermanVerbsApp() {
                 .verb-forms-grid-table {
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 0.9rem;
-                    white-space: nowrap;
+                    font-size: 0.85rem;
                 }
                 .verb-forms-grid-table th, .verb-forms-grid-table td {
                     border: 1px solid var(--gray-200);
-                    padding: 0.75rem;
+                    padding: 0.6rem 0.75rem;
                     text-align: left;
                     vertical-align: middle;
+                    white-space: nowrap;
                 }
                 .verb-forms-grid-table thead th {
                     background-color: var(--gray-100);
                     font-weight: 600;
+                    font-size: 0.8rem;
                     color: var(--gray-900);
                     text-align: center;
                 }
-                .verb-forms-grid-table tbody td:first-child {
+                .verb-forms-grid-table .sticky-col {
+                    position: sticky;
+                    left: 0;
+                    z-index: 1;
+                    width: 80px; /* Fixed width for the first column */
+                }
+                .verb-forms-grid-table thead .sticky-col {
+                    background-color: var(--gray-100);
+                }
+                .verb-forms-grid-table tbody .sticky-col {
                     font-weight: 600;
                     color: var(--gray-800);
                     background-color: var(--gray-50);
@@ -1118,6 +1146,20 @@ function GermanVerbsApp() {
                     color: var(--blue-700);
                     font-weight: 700;
                     border-color: var(--blue-600);
+                }
+
+                @media (max-width: 640px) {
+                    .verb-forms-container {
+                        margin: 0 -1rem; /* Edge-to-edge */
+                    }
+                    .verb-forms-grid-table-wrapper {
+                        border-left: none;
+                        border-right: none;
+                        border-radius: 0;
+                    }
+                    .pronoun-selector-container {
+                        padding: 0.5rem 1rem;
+                    }
                 }
 
 
@@ -1177,7 +1219,7 @@ function GermanVerbsApp() {
                 .verb-info-subtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
                 .icon-purple { color: var(--purple-500); }
                 .modal-body-container { flex-grow: 1; padding: 0.5rem 1.5rem; overflow-y: auto; padding-bottom: 5rem; }
-                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); padding: 2rem; min-height: 220px; }
+                .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); padding: 1.4rem;  }
                 .loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
                 .loader-small { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
