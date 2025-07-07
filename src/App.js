@@ -383,8 +383,19 @@ function GermanVerbsApp() {
                 <ChevronLeft />
               </button>
               <div className="verb-display">
-                <h2>{currentVerb.infinitive}</h2>
+                <h2>
+                  {currentVerb.infinitive
+                    ? currentVerb.infinitive.charAt(0).toUpperCase() + currentVerb.infinitive.slice(1)
+                    : ""}
+                </h2>
                 <p>{currentVerb.russian}</p>
+
+                <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.25rem" }}>
+                  {currentVerb.type === "weak" && "Слабый глагол"}
+                  {currentVerb.type === "strong" && "Сильный глагол"}
+                  {currentVerb.type === "mixed" && "Смешанный глагол"}
+                  {!["weak", "strong", "mixed"].includes(currentVerb.type) && "Тип не указан"}
+                </div>
               </div>
               <button onClick={() => changeVerb(1)} className="nav-btn">
                 <ChevronRight />
