@@ -6,7 +6,7 @@ export const pronouns = [
   { german: "du", russian: "ты", base: "du" },
   { german: "er/sie/es", russian: "он/она/оно", base: "er" },
   { german: "wir", russian: "мы", base: "wir" },
-  { german: "ihr", russian: "вы", base: "ihr" },
+  { german: "ihr", russian: "вы (мн.ч.)", base: "ihr" },
   { german: "sie/Sie", russian: "они/Вы", base: "sie" },
 ];
 

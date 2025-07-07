@@ -475,7 +475,20 @@ function GermanVerbsApp() {
                             </td>
                             <td className="pronoun-cell">
                               <span>{pronoun.german}</span>
-                              <span className="pronoun-russian">
+                              {/* 
+                                Перевод местоимения теперь всегда виден.
+                                Убрали скрытие через CSS для .pronoun-russian.
+                                Если нужно скрывать только на очень маленьких экранах, используйте media query с меньшей шириной.
+                              */}
+                              <span
+                                className="pronoun-russian"
+                                style={{
+                                  display: "inline",
+                                  color: "#6b7280", // var(--gray-500)
+                                  marginLeft: "0.5rem",
+                                  fontSize: "0.95em"
+                                }}
+                              >
                                 ({pronoun.russian})
                               </span>
                             </td>
@@ -681,9 +694,13 @@ function GermanVerbsApp() {
                 }
 
                 /* --- Оригинальная таблица спряжения (GermanVerbsApp) --- */
-                .table-container { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; }
+                .table-container { background-color: white; border-radius: 0.5rem; overflow: hidden; }
                 .table-container table { width: 100%; border-collapse: collapse; }
-                .table-container td { border: 1px solid var(--gray-200); padding: 0.75rem; }
+                /* 
+                  Убрано чередование фоновых цветов строк: теперь фон всех строк одинаковый (белый).
+                  Бордеры оставлены белыми, высота строк прежняя.
+                */
+                .table-container td { border: 1px solid #fff; padding: 0.5rem; }
                 .speak-cell { text-align: center; width: 48px; }
                 .speak-cell button { padding: 0.25rem; color: var(--gray-500); }
                 .pronoun-cell { font-weight: 500; }
@@ -703,81 +720,74 @@ function GermanVerbsApp() {
                     flex-direction: column;
                     justify-content: center;
                 }
+                /*
+                  Обновлено: убрано чередование фоновых цветов строк, увеличена высота строк.
+                  Теперь фон всех строк одинаковый (белый), а высота строк больше для лучшей читаемости.
+                */
                 .verb-forms-grid-table-wrapper {
+                    background-color: white;
+                    border-radius: 0.5rem;
+                    overflow: hidden;
                     overflow-x: auto;
+                    border: none;
                     /* Скрываем скроллбар во всех браузерах */
                     scrollbar-width: none; /* Firefox */
                     -ms-overflow-style: none; /* IE и Edge */
-                    border: 1px solid var(--gray-200);
-                    border-radius: 0.5rem;
-                    overscroll-behavior-x: contain; /* Prevents page scroll */
-                    touch-action: pan-x; /* Improves mobile scroll experience */
                 }
                 .verb-forms-grid-table-wrapper::-webkit-scrollbar {
                     display: none; /* Safari и Chrome */
                 }
-                /* 
-                  Альтернатива: если потребуется оставить скроллбар только при наведении,
-                  можно использовать opacity, но для полной невидимости достаточно display: none.
-                */
 
                 .verb-forms-grid-table {
                     width: 100%;
-                    border-collapse: separate; /* Crucial for sticky columns */
-                    border-spacing: 0;
+                    border-collapse: collapse;
                     font-size: 0.85rem;
                 }
-                .verb-forms-grid-table th, .verb-forms-grid-table td {
-                    border-bottom: 1px solid var(--gray-200);
-                    border-right: 1px solid var(--gray-200);
-                    padding: 0.6rem 0.75rem;
-                    text-align: left;
-                    vertical-align: middle;
-                    white-space: nowrap;
+                .verb-forms-grid-table td {
+                    border: 1px solid #fff; /* белые бордеры */
+                    padding: 0.85rem 0.75rem; /* увеличенная высота строки */
+                    background-color: #fff; /* одинаковый фон для всех строк */
+                    white-space: nowrap; /* Запрещаем перенос текста */
                 }
-                .verb-forms-grid-table th:first-child, .verb-forms-grid-table td:first-child {
-                    border-left: none;
-                }
-                .verb-forms-grid-table tr:last-child td {
-                    border-bottom: none;
-                }
-                 .verb-forms-grid-table th:last-child, .verb-forms-grid-table td:last-child {
-                    border-right: none;
-                }
-
-                .verb-forms-grid-table thead th {
+                .verb-forms-grid-table th {
                     background-color: var(--gray-100);
                     font-weight: 600;
                     font-size: 0.8rem;
                     color: var(--gray-900);
                     text-align: center;
+                    border: none;
+                    padding: 0.85rem 0.75rem; /* увеличенная высота строки */
+                    white-space: nowrap; /* Запрещаем перенос текста в заголовках */
                 }
-                .verb-forms-grid-table .sticky-col {
-                    position: sticky;
-                    left: 0px;
-                    z-index: 1;
-                    width: 80px;
+                .verb-forms-grid-table th:first-child,
+                .verb-forms-grid-table td:first-child {
+                    border-left: none;
                 }
-                .verb-forms-grid-table thead .sticky-col {
-                    background-color: var(--gray-100);
+                .verb-forms-grid-table tr:last-child td {
+                    border-bottom: none;
                 }
-                .verb-forms-grid-table tbody .sticky-col {
-                    font-weight: 600;
-                    color: var(--gray-800);
-                    background-color: var(--white);
+                .verb-forms-grid-table th:last-child,
+                .verb-forms-grid-table td:last-child {
+                    border-right: none;
                 }
-                .verb-forms-grid-table tr:nth-child(even) .sticky-col {
-                    background-color: var(--gray-50);
-                }
-                .verb-forms-grid-table tr:nth-child(even) td {
-                    background-color: var(--gray-50);
-                }
-
                 .verb-forms-grid-table b {
                     color: var(--blue-600);
                     font-weight: 700;
                 }
-                
+                /* Стилизация для "липкой" первой колонки, аналогично основной таблице */
+                .verb-forms-grid-table th.sticky-col,
+                .verb-forms-grid-table td.sticky-col {
+                    position: sticky;
+                    left: 0;
+                    z-index: 2;
+                    background-color: var(--gray-100);
+                }
+                .verb-forms-grid-table td.sticky-col {
+                    font-weight: 500;
+                    color: var(--gray-600);
+                    background-color: var(--white);
+                    z-index: 1;
+                }
                 .pronoun-selector-wrapper {
                     position: relative;
                 }
@@ -1071,7 +1081,7 @@ function GermanVerbsApp() {
                 }
                 /* Цвет заголовков колонок: делаем явным */
                 .conjugation-table th { 
-                    background-color: var(--blue-100); 
+                    background-color: var(--gray-50); 
                     font-weight: 600; 
                     text-align: center; 
                     color: var(--gray-900); /* Явно задаём цвет текста заголовков */
@@ -1082,7 +1092,7 @@ function GermanVerbsApp() {
                     position: sticky;
                     left: 0;
                     z-index: 2; /* th будет поверх td */
-                    background-color: var(--blue-100);
+                    background-color: var(--gray-50);
                 }
                 .conjugation-table td:first-child {
                     font-weight: 500;
