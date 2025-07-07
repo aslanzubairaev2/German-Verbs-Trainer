@@ -1044,8 +1044,8 @@ function GermanVerbsApp() {
                 .speak-btn-small:hover { background-color: rgba(0,0,0,0.05); }
                 .accordion-icon { transition: transform 0.3s ease-in-out; color: var(--gray-500); }
                 .accordion-icon.active { transform: rotate(180deg); }
-                .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 0.5rem; }
-                .accordion-content.active { max-height: 500px; padding: 0.5rem; }
+                .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 0.2rem; }
+                .accordion-content.active { max-height: 500px; padding: 0.2rem; }
                 .example-german b { color: var(--blue-600); font-weight: 700; }
 
                 /* --- Компактная таблица спряжения (ConjugationTable) --- */
@@ -1053,7 +1053,7 @@ function GermanVerbsApp() {
                     background-color: var(--white); 
                     border-radius: 0.375rem; 
                     margin-top: 0.25rem; 
-                    border: 1px solid var(--gray-200); 
+                    /* border убран по просьбе пользователя */
                     overflow-x: auto; 
                 }
                 .conjugation-table-wrapper::-webkit-scrollbar { height: 4px; }
@@ -1062,9 +1062,34 @@ function GermanVerbsApp() {
                 .conjugation-table-wrapper::-webkit-scrollbar-thumb:hover { background: var(--blue-600); }
 
                 .conjugation-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
-                .conjugation-table th, .conjugation-table td { border: 1px solid var(--gray-200); padding: 0.4rem 0.6rem; text-align: left; vertical-align: middle; }
-                .conjugation-table th { background-color: var(--gray-100); font-weight: 600; text-align: center; }
-                .conjugation-table td:first-child { font-weight: 500; color: var(--gray-600); }
+                /* Убираем границы ячеек таблицы */
+                .conjugation-table th, .conjugation-table td { 
+                    border: none; /* border убран */
+                    padding: 0.4rem 0.6rem; 
+                    text-align: left; 
+                    vertical-align: middle; 
+                }
+                /* Цвет заголовков колонок: делаем явным */
+                .conjugation-table th { 
+                    background-color: var(--blue-100); 
+                    font-weight: 600; 
+                    text-align: center; 
+                    color: var(--gray-900); /* Явно задаём цвет текста заголовков */
+                }
+                /* Закрепляем первую колонку (и th, и td) */
+                .conjugation-table th:first-child,
+                .conjugation-table td:first-child {
+                    position: sticky;
+                    left: 0;
+                    z-index: 2; /* th будет поверх td */
+                    background-color: var(--blue-100);
+                }
+                .conjugation-table td:first-child {
+                    font-weight: 500;
+                    color: var(--gray-600);
+                    background-color: var(--white); /* перекрываем фон для td */
+                    z-index: 1;
+                }
                 .conjugation-table td b { color: var(--blue-600); font-weight: 700; }
                 .table-cell-content { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
                 .speak-btn-tiny { color: var(--gray-400); padding: 0.1rem; border-radius: 50%; flex-shrink: 0; }
