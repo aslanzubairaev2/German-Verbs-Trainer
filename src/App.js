@@ -31,6 +31,7 @@ import LevelUpToast from "./components/LevelUpToast.js";
 import VerbFormsDisplay from "./components/VerbFormsDisplay.js";
 import { pronouns, LEVEL_ORDER, LEVEL_UP_REQUIREMENTS } from "./constants";
 import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
+import StartScreen from "./components/StartScreen";
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 
@@ -289,20 +290,19 @@ function GermanVerbsApp() {
 
   // Обёртка для передачи в GeminiInfoModal
   const handleFetchGeminiInfo = (verb, setter, force) => {
-    fetchGeminiInfo({ verb, geminiDataCache, setGeminiDataCache, setter, force });
+    fetchGeminiInfo({
+      verb,
+      geminiDataCache,
+      setGeminiDataCache,
+      setter,
+      force,
+    });
   };
 
   // --- RENDER ---
   if (!audioReady) {
-    return (
-      <div className="start-screen">
-        <div className="start-box">
-          <h1>Тренажер немецких глаголов</h1>
-          <p>Нажмите, чтобы начать и активировать звук.</p>
-          <button onClick={() => setAudioReady(true)}>Начать</button>
-        </div>
-      </div>
-    );
+    // Показываем отдельный компонент начального экрана, пока не активирован звук
+    return <StartScreen onStart={() => setAudioReady(true)} />;
   }
 
   return (
@@ -385,16 +385,24 @@ function GermanVerbsApp() {
               <div className="verb-display">
                 <h2>
                   {currentVerb.infinitive
-                    ? currentVerb.infinitive.charAt(0).toUpperCase() + currentVerb.infinitive.slice(1)
+                    ? currentVerb.infinitive.charAt(0).toUpperCase() +
+                      currentVerb.infinitive.slice(1)
                     : ""}
                 </h2>
                 <p>{currentVerb.russian}</p>
 
-                <div style={{ fontSize: "0.8rem", color: "#64748b", marginTop: "0.25rem" }}>
+                <div
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "#64748b",
+                    marginTop: "0.25rem",
+                  }}
+                >
                   {currentVerb.type === "weak" && "Слабый глагол"}
                   {currentVerb.type === "strong" && "Сильный глагол"}
                   {currentVerb.type === "mixed" && "Смешанный глагол"}
-                  {!["weak", "strong", "mixed"].includes(currentVerb.type) && "Тип не указан"}
+                  {!["weak", "strong", "mixed"].includes(currentVerb.type) &&
+                    "Тип не указан"}
                 </div>
               </div>
               <button onClick={() => changeVerb(1)} className="nav-btn">
@@ -497,7 +505,7 @@ function GermanVerbsApp() {
                                   display: "inline",
                                   color: "#6b7280", // var(--gray-500)
                                   marginLeft: "0.5rem",
-                                  fontSize: "0.95em"
+                                  fontSize: "0.95em",
                                 }}
                               >
                                 ({pronoun.russian})
@@ -547,6 +555,8 @@ function GermanVerbsApp() {
       <style>{`
                 /* --- Глобальные переменные и базовые стили (для всего приложения) --- */
                 :root {
+                    /* Теперь основной шрифт — Manrope, современный и с поддержкой кириллицы */
+                    --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
                     --blue-50: #eff6ff; --blue-100: #dbeafe; --blue-600: #2563eb; --blue-700: #1d4ed8;
                     --green-50: #f0fdf4; --green-100: #dcfce7; --green-500: #22c55e; --green-600: #16a34a; --green-800: #166534;
                     --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb; --gray-400: #9ca3af; --gray-500: #6b7280; --gray-800: #1f2937; --gray-900: #111827;
@@ -554,7 +564,6 @@ function GermanVerbsApp() {
                     --purple-500: #a855f7; --white: #ffffff; --black-t60: rgba(0, 0, 0, 0.6);
                     --orange-400: #fb923c; --amber-400: #facc15; --lime-400: #a3e63e; --cyan-400: #22d3ee;
                     --gold-100: #FEF3C7; --gold-600: #D97706;
-                    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
                 }
 
                 body {
