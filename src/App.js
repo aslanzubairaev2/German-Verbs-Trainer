@@ -310,12 +310,13 @@ function GermanVerbsApp() {
     });
   };
 
+  // Оставить сброс статистики только в onNextVerb, onRestart, onBackToStudy
   const handleRestart = () => {
     setShowCompletionModal(false);
     setStreak(0);
     setErrors(0);
     setTotal(0);
-    setPracticeMode(false);
+    setPracticeMode(true);
     setCurrentPronoun(0);
     setUserAnswer("");
     setFeedback("");
@@ -326,35 +327,40 @@ function GermanVerbsApp() {
 
   const handleNextVerb = () => {
     setShowCompletionModal(false);
+    // Переводим на следующий глагол
+    const currentIndexInAvailable = availableVerbsForProgression.findIndex(
+      (v) => v.infinitive === currentVerb.infinitive
+    );
+    const nextIndexInAvailable =
+      (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
+    const nextVerbInfinitive =
+      availableVerbsForProgression[nextIndexInAvailable]?.infinitive;
+    if (nextVerbInfinitive) {
+      setAppState((prev) => ({
+        ...prev,
+        lastVerbIndex: allVerbs.findIndex(
+          (v) => v.infinitive === nextVerbInfinitive
+        ),
+      }));
+    }
     setStreak(0);
     setErrors(0);
     setTotal(0);
-    setPracticeMode(false);
+    setPracticeMode(true);
     setCurrentPronoun(0);
     setUserAnswer("");
     setFeedback("");
     setHintUsed(false);
     setShowHint(false);
     resetVerbState();
-    const currentIndexInAvailable = availableVerbsForProgression.findIndex(
-      (v) => v.infinitive === currentVerb.infinitive
-    );
-    const nextIndexInAvailable = (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
-    const nextVerbInfinitive = availableVerbsForProgression[nextIndexInAvailable]?.infinitive;
-    if (nextVerbInfinitive) {
-      setAppState((prev) => ({ ...prev, lastVerbIndex: allVerbs.findIndex(v => v.infinitive === nextVerbInfinitive) }));
-      if (autoPlay) {
-        setTimeout(() => speak(nextVerbInfinitive), 100);
-      }
-    }
   };
 
   const handleBackToStudy = () => {
     setShowCompletionModal(false);
+    setPracticeMode(false);
     setStreak(0);
     setErrors(0);
     setTotal(0);
-    setPracticeMode(false);
     setCurrentPronoun(0);
     setUserAnswer("");
     setFeedback("");
@@ -368,6 +374,14 @@ function GermanVerbsApp() {
     // Показываем отдельный компонент начального экрана, пока не активирован звук
     return <StartScreen onStart={() => setAudioReady(true)} />;
   }
+
+  const currentIndexInAvailable = availableVerbsForProgression.findIndex(
+    (v) => v.infinitive === currentVerb.infinitive
+  );
+  const nextIndexInAvailable =
+    (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
+  const nextVerbInfinitive =
+    availableVerbsForProgression[nextIndexInAvailable]?.infinitive;
 
   return (
     <>
@@ -473,27 +487,39 @@ function GermanVerbsApp() {
 
           <div className="main-card-body">
             {practiceMode ? (
-              <PracticeBox
-                verb={currentVerb}
-                onAnswer={checkAnswer}
-                userAnswer={userAnswer}
-                setUserAnswer={setUserAnswer}
-                feedback={feedback}
-                currentPronoun={currentPronoun}
-                pronouns={pronouns}
-                speak={speak}
-                isSpeaking={isSpeaking}
-                onHint={handleHint}
-                showHint={showHint}
-                hintUsed={hintUsed}
-                onComplete={() => setShowCompletionModal(true)}
-                streak={streak}
-                setStreak={setStreak}
-                errors={errors}
-                setErrors={setErrors}
-                total={total}
-                setTotal={setTotal}
-              />
+              showCompletionModal ? (
+                <PracticeCompletionModal
+                  show={showCompletionModal}
+                  onClose={() => setShowCompletionModal(false)}
+                  stats={{ streak, errors, total }}
+                  onRestart={handleRestart}
+                  onNextVerb={handleNextVerb}
+                  onBackToStudy={handleBackToStudy}
+                  nextVerb={nextVerbInfinitive}
+                />
+              ) : (
+                <PracticeBox
+                  verb={currentVerb}
+                  onAnswer={checkAnswer}
+                  userAnswer={userAnswer}
+                  setUserAnswer={setUserAnswer}
+                  feedback={feedback}
+                  currentPronoun={currentPronoun}
+                  pronouns={pronouns}
+                  speak={speak}
+                  isSpeaking={isSpeaking}
+                  onHint={handleHint}
+                  showHint={showHint}
+                  hintUsed={hintUsed}
+                  onComplete={() => setShowCompletionModal(true)}
+                  streak={streak}
+                  setStreak={setStreak}
+                  errors={errors}
+                  setErrors={setErrors}
+                  total={total}
+                  setTotal={setTotal}
+                />
+              )
             ) : (
               <>
                 <div className="study-view-toggle">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Lightbulb, Check, Volume2 } from "lucide-react";
 import PracticeCompletionModal from "./PracticeCompletionModal";
 import PracticeExamplesModal from "./PracticeExamplesModal";
@@ -9,7 +9,19 @@ import { fetchContextExamples } from "../api/gemini";
  * Только выбор из вариантов (кнопки), без поля ввода.
  * Мини-статистика сверху, лаконичный дизайн, плавные анимации.
  */
-function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
+function PracticeBox({
+  verb,
+  onNextVerb,
+  onBackToStudy,
+  onComplete,
+  streak,
+  setStreak,
+  errors,
+  setErrors,
+  total,
+  setTotal,
+  ...rest
+}) {
   // --- Константы ---
   const pronouns = [
     { german: "ich", russian: "я" },
@@ -25,11 +37,6 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
   const [feedback, setFeedback] = useState("");
   const [showHint, setShowHint] = useState(false);
   const [hintUsed, setHintUsed] = useState(false);
-  const [streak, setStreak] = useState(0);
-  const [errors, setErrors] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [answerOptions, setAnswerOptions] = useState([]);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [finished, setFinished] = useState(false);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
@@ -38,12 +45,18 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
   const [showContinueButton, setShowContinueButton] = useState(false);
   const [showExamplesModal, setShowExamplesModal] = useState(false); // модалка примеров
   const [pendingContinue, setPendingContinue] = useState(false);
-  const [mistakeIndices, setMistakeIndices] = useState([]); // индексы ошибочных местоимений текущего раунда
+  const [mistakeIndices, setMistakeIndices] = useState([]);
+  const mistakeIndicesRef = useRef(mistakeIndices);
+  useEffect(() => {
+    mistakeIndicesRef.current = mistakeIndices;
+  }, [mistakeIndices]);
   const [mistakeStats, setMistakeStats] = useState([]); // массив объектов: { round, total, errors }
   const [isMistakeRound, setIsMistakeRound] = useState(false);
   const [mistakeRoundNumber, setMistakeRoundNumber] = useState(0);
   const [showMistakeModal, setShowMistakeModal] = useState(false); // модалка перехода к ошибкам
   const [examplesPhase, setExamplesPhase] = useState(null); // null | 'correct' | 'examples'
+  const [answerOptions, setAnswerOptions] = useState([]);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // --- Генерация вариантов ответов (для кнопок) ---
   useEffect(() => {
@@ -70,7 +83,6 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
       setFeedback("Верно!");
       setStreak((s) => s + 1);
       if (isMistakeRound) {
-        // Удаляем текущий индекс из mistakeIndices и переходим к следующему
         setMistakeIndices((prev) => {
           const updated = prev.filter((idx) => idx !== currentPronoun);
           setTimeout(() => {
@@ -79,7 +91,7 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
             setHintUsed(false);
             setSelectedAnswer(null);
             if (updated.length === 0) {
-              handleRoundFinish();
+              if (typeof onComplete === "function") onComplete();
             } else {
               setCurrentPronoun(updated[0]);
             }
@@ -88,22 +100,18 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
         });
         return;
       }
-      // Обычный режим
       setTimeout(() => {
         setFeedback("");
         setShowHint(false);
         setHintUsed(false);
         setSelectedAnswer(null);
-        if (
-          getCurrentIndices().length > 0 &&
-          getCurrentIndices().indexOf(currentPronoun) + 1 <
-            getCurrentIndices().length
-        ) {
-          setCurrentPronoun(
-            getCurrentIndices()[getCurrentIndices().indexOf(currentPronoun) + 1]
-          );
+        const indices = getCurrentIndices();
+        const idx = indices.indexOf(currentPronoun);
+        if (idx + 1 < indices.length) {
+          setCurrentPronoun(indices[idx + 1]);
         } else {
-          handleRoundFinish();
+          // После последнего вопроса обычного раунда — всегда использовать актуальный mistakeIndices
+          handleRoundFinish(mistakeIndicesRef.current);
         }
       }, 900);
     } else {
@@ -111,9 +119,12 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
       setStreak(0);
       setShowExamplesModal(true);
       setExplanationText("LOADING");
-      setMistakeIndices((prev) =>
-        prev.includes(currentPronoun) ? prev : [...prev, currentPronoun]
-      );
+      setMistakeIndices((prev) => {
+        if (!prev.includes(currentPronoun)) {
+          return [...prev, currentPronoun];
+        }
+        return prev;
+      });
       fetchContextExamples({
         verb,
         pronoun: pronouns[currentPronoun].german,
@@ -129,7 +140,7 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
     return isMistakeRound ? mistakeIndices : pronouns.map((_, i) => i);
   }
 
-  function handleRoundFinish() {
+  function handleRoundFinish(currentMistakes = mistakeIndicesRef.current) {
     // Сохраняем статистику по раунду
     setMistakeStats((prev) => [
       ...prev,
@@ -139,24 +150,24 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
         errors,
       },
     ]);
-    if (!isMistakeRound && mistakeIndices.length > 0) {
-      // Первый переход к ошибкам — показываем модалку
+    if (!isMistakeRound && currentMistakes.length > 0) {
+      // Запускаем работу над ошибками
       setIsMistakeRound(true);
       setMistakeRoundNumber((n) => n + 1);
-      setShowMistakeModal(true); // показываем модалку
-      // НЕ сбрасываем total/errors/streak!
+      setShowMistakeModal(true); // показываем модалку только при первом переходе
       // setCurrentPronoun(mistakeIndices[0]); // переносим в onMistakeModalOk
-    } else if (isMistakeRound && mistakeIndices.length > 0) {
-      // Повторный раунд ошибок — НЕ показываем модалку, сразу начинаем
-      setMistakeRoundNumber((n) => n + 1);
-      setCurrentPronoun(mistakeIndices[0]);
-    } else {
-      // Всё правильно — завершение
-      setFinished(true);
-      setShowCompletionModal(true);
-      setMistakeIndices([]); // очищаем только при полном завершении
+      return;
     }
-    // setMistakeIndices([]); // УДАЛЕНО отсюда
+    if (isMistakeRound && currentMistakes.length > 0) {
+      // Повторный раунд ошибок — сразу начинаем
+      setMistakeRoundNumber((n) => n + 1);
+      setCurrentPronoun(currentMistakes[0]);
+      return;
+    }
+    // Всё правильно — завершение
+    if (typeof onComplete === "function") onComplete();
+    setIsMistakeRound(false);
+    setMistakeIndices([]);
   }
 
   function handleExamplesContinue() {
@@ -342,7 +353,6 @@ function PracticeBox({ verb, onNextVerb, onBackToStudy }) {
                   className += " incorrect";
                 }
               }
-
               return (
                 <button
                   key={idx}
