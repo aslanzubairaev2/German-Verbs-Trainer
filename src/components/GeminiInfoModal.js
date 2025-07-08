@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles,
   X,
@@ -23,6 +23,7 @@ const GeminiInfoModal = ({
     error: null,
   });
   const [activeIndex, setActiveIndex] = useState(null);
+  const activeIndexRef = useRef(null);
   const handleFetch = useCallback(
     (force = false) => {
       onFetch(verb, setGeminiInfo, force);
@@ -33,7 +34,8 @@ const GeminiInfoModal = ({
     if (show) {
       document.body.style.overflow = "hidden";
       handleFetch(false);
-      setActiveIndex(null);
+      // Не сбрасываем activeIndex при открытии модального окна
+      // setActiveIndex(null);
     } else {
       document.body.style.overflow = "auto";
     }
@@ -41,8 +43,16 @@ const GeminiInfoModal = ({
       document.body.style.overflow = "auto";
     };
   }, [show, handleFetch]);
+
+  // Синхронизируем activeIndex с ref
+  useEffect(() => {
+    activeIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
   const handleToggle = (index) => {
-    setActiveIndex(activeIndex === index ? null : index);
+    const newIndex = activeIndex === index ? null : index;
+    setActiveIndex(newIndex);
+    activeIndexRef.current = newIndex;
   };
   const formatVerbInfo = (info) => {
     if (!info) return null;

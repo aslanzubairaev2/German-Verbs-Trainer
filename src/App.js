@@ -960,7 +960,7 @@ function GermanVerbsApp() {
                 .hint-box { padding: 0.75rem 1rem; background-color: var(--yellow-100); border-radius: 0.5rem; display: inline-block; font-weight: 500; }
 
                 /* --- Плавающие кнопки действий (FAB, GermanVerbsApp) --- */
-                .fab-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 40; display: flex; flex-direction: column; gap: 1rem; }
+                .fab-container { position: fixed; bottom: 1.5rem; right: calc(50% - 61px); z-index: 40; display: flex; flex-direction: row; gap: 10px; }
                 .fab-button {
                     width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
                     justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: var(--white);
