@@ -230,3 +230,133 @@ export async function fetchVerbForms({
     });
   }
 }
+
+/**
+ * Получить объяснение ошибки для практики через Gemini
+ * @param {string} prompt - промпт с вопросом об ошибке
+ * @param {function} setter - функция для установки состояния
+ */
+export async function fetchExplanation({ prompt, setter }) {
+  if (!prompt) {
+    setter("");
+    return;
+  }
+
+  setter("Загружаю объяснение...");
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    setter("API ключ не настроен");
+    return;
+  }
+
+  const payload = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 200,
+    },
+  };
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error("Пустой ответ от Gemini");
+    }
+
+    const explanation = result.candidates[0].content.parts[0].text.trim();
+    setter(explanation);
+  } catch (error) {
+    console.error("Fetch Explanation Error:", error);
+    setter("Не удалось получить объяснение");
+  }
+}
+
+/**
+ * Получить контекстные примеры с подсветкой глаголов для практики
+ * @param {object} verb - объект глагола
+ * @param {string} pronoun - местоимение
+ * @param {string} correctForm - правильная форма
+ * @param {string} wrongForm - неправильная форма
+ * @param {function} setter - функция для установки состояния
+ */
+export async function fetchContextExamples({
+  verb,
+  pronoun,
+  correctForm,
+  wrongForm,
+  setter,
+}) {
+  if (!verb || !pronoun || !correctForm) {
+    setter("");
+    return;
+  }
+
+  // Сначала показываем базовый пример
+  setter(`<b>${correctForm}</b> - правильная форма для "${pronoun}"`);
+
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+
+  if (!apiKey) {
+    setter(`<b>${correctForm}</b> - правильная форма для "${pronoun}"`);
+    return;
+  }
+
+  const prompt = `Создай 3 простых примера предложений на немецком языке, где используется глагол "${verb.infinitive}" с местоимением "${pronoun}" в форме "${correctForm}". 
+
+В каждом предложении выдели глагол жирным шрифтом, используя теги <b></b>.
+
+Примеры должны быть простыми и понятными для изучения немецкого языка.
+
+Формат ответа:
+1. <b>${correctForm}</b> nach Hause.
+2. Ich <b>${correctForm}</b> zur Schule.
+3. Er <b>${correctForm}</b> ins Kino.`;
+
+  const payload = {
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 150,
+    },
+  };
+
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error("Пустой ответ от Gemini");
+    }
+
+    const examples = result.candidates[0].content.parts[0].text.trim();
+    setter(examples);
+  } catch (error) {
+    console.error("Fetch Context Examples Error:", error);
+    setter(`<b>${correctForm}</b> - правильная форма для "${pronoun}"`);
+  }
+}

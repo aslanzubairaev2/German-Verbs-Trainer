@@ -29,9 +29,16 @@ import SettingsModal from "./components/SettingsModal.js";
 import GeminiInfoModal from "./components/GeminiInfoModal.js";
 import LevelUpToast from "./components/LevelUpToast.js";
 import VerbFormsDisplay from "./components/VerbFormsDisplay.js";
-import { pronouns, LEVEL_ORDER, LEVEL_UP_REQUIREMENTS } from "./constants";
+import {
+  pronouns,
+  LEVEL_ORDER,
+  LEVEL_UP_REQUIREMENTS,
+  getVerbTypeLabel,
+} from "./constants";
 import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
 import StartScreen from "./components/StartScreen";
+import PracticeBox from "./components/PracticeBox";
+import PracticeCompletionModal from "./components/PracticeCompletionModal";
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 
@@ -83,6 +90,10 @@ function GermanVerbsApp() {
   const [geminiDataCache, setGeminiDataCache] = useState({});
   const [verbFormsCache, setVerbFormsCache] = useState({}); // <-- Кэш для новых форм
   const [studyView, setStudyView] = useState("conjugation"); // 'conjugation' или 'forms'
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [errors, setErrors] = useState(0);
+  const [total, setTotal] = useState(0);
 
   // --- DERIVED STATE & MEMOS ---
   const availableVerbsForProgression = useMemo(
@@ -299,6 +310,59 @@ function GermanVerbsApp() {
     });
   };
 
+  const handleRestart = () => {
+    setShowCompletionModal(false);
+    setStreak(0);
+    setErrors(0);
+    setTotal(0);
+    setPracticeMode(false);
+    setCurrentPronoun(0);
+    setUserAnswer("");
+    setFeedback("");
+    setHintUsed(false);
+    setShowHint(false);
+    resetVerbState();
+  };
+
+  const handleNextVerb = () => {
+    setShowCompletionModal(false);
+    setStreak(0);
+    setErrors(0);
+    setTotal(0);
+    setPracticeMode(false);
+    setCurrentPronoun(0);
+    setUserAnswer("");
+    setFeedback("");
+    setHintUsed(false);
+    setShowHint(false);
+    resetVerbState();
+    const currentIndexInAvailable = availableVerbsForProgression.findIndex(
+      (v) => v.infinitive === currentVerb.infinitive
+    );
+    const nextIndexInAvailable = (currentIndexInAvailable + 1) % availableVerbsForProgression.length;
+    const nextVerbInfinitive = availableVerbsForProgression[nextIndexInAvailable]?.infinitive;
+    if (nextVerbInfinitive) {
+      setAppState((prev) => ({ ...prev, lastVerbIndex: allVerbs.findIndex(v => v.infinitive === nextVerbInfinitive) }));
+      if (autoPlay) {
+        setTimeout(() => speak(nextVerbInfinitive), 100);
+      }
+    }
+  };
+
+  const handleBackToStudy = () => {
+    setShowCompletionModal(false);
+    setStreak(0);
+    setErrors(0);
+    setTotal(0);
+    setPracticeMode(false);
+    setCurrentPronoun(0);
+    setUserAnswer("");
+    setFeedback("");
+    setHintUsed(false);
+    setShowHint(false);
+    resetVerbState();
+  };
+
   // --- RENDER ---
   if (!audioReady) {
     // Показываем отдельный компонент начального экрана, пока не активирован звук
@@ -398,11 +462,7 @@ function GermanVerbsApp() {
                     marginTop: "0.25rem",
                   }}
                 >
-                  {currentVerb.type === "weak" && "Слабый глагол"}
-                  {currentVerb.type === "strong" && "Сильный глагол"}
-                  {currentVerb.type === "mixed" && "Смешанный глагол"}
-                  {!["weak", "strong", "mixed"].includes(currentVerb.type) &&
-                    "Тип не указан"}
+                  {getVerbTypeLabel(currentVerb.type)}
                 </div>
               </div>
               <button onClick={() => changeVerb(1)} className="nav-btn">
@@ -413,54 +473,27 @@ function GermanVerbsApp() {
 
           <div className="main-card-body">
             {practiceMode ? (
-              <div className="practice-box">
-                <div className="practice-prompt">
-                  <p>
-                    Как спрягается <strong>{currentVerb.infinitive}</strong> с
-                    местоимением{" "}
-                    <strong>{pronouns[currentPronoun].german}</strong>?
-                  </p>
-                </div>
-                <div className="practice-input-group">
-                  <span>{pronouns[currentPronoun].german}</span>
-                  <input
-                    type="text"
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Форма глагола"
-                    autoFocus
-                  />
-                  <button onClick={checkAnswer} disabled={!userAnswer.trim()}>
-                    <Check />
-                  </button>
-                </div>
-                {feedback && (
-                  <div
-                    className={`feedback-box ${
-                      feedback.includes("Правильно") ? "correct" : "incorrect"
-                    }`}
-                  >
-                    {feedback}
-                  </div>
-                )}
-                <div className="hint-container">
-                  {showHint ? (
-                    <div className="hint-box">
-                      {pronouns[currentPronoun].german}{" "}
-                      {currentVerb.forms[currentPronoun]}
-                    </div>
-                  ) : (
-                    <button
-                      className="hint-btn"
-                      onClick={handleHint}
-                      title="Показать подсказку"
-                    >
-                      <Lightbulb size={20} />
-                    </button>
-                  )}
-                </div>
-              </div>
+              <PracticeBox
+                verb={currentVerb}
+                onAnswer={checkAnswer}
+                userAnswer={userAnswer}
+                setUserAnswer={setUserAnswer}
+                feedback={feedback}
+                currentPronoun={currentPronoun}
+                pronouns={pronouns}
+                speak={speak}
+                isSpeaking={isSpeaking}
+                onHint={handleHint}
+                showHint={showHint}
+                hintUsed={hintUsed}
+                onComplete={() => setShowCompletionModal(true)}
+                streak={streak}
+                setStreak={setStreak}
+                errors={errors}
+                setErrors={setErrors}
+                total={total}
+                setTotal={setTotal}
+              />
             ) : (
               <>
                 <div className="study-view-toggle">
