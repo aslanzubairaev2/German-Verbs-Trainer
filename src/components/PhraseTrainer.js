@@ -210,7 +210,78 @@ function PhraseTrainer({ onBackToMain }) {
       </div>
 
       {/* Переворачивающаяся карточка */}
-      {phrase && (
+      {loading || generatingSimilar ? (
+        // Скелетон карточки во время загрузки или генерации AI
+        <div
+          style={{
+            marginTop: "1.5rem",
+            perspective: "1000px",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              height: "200px",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                width: "300px",
+                height: "100%",
+                padding: "1.5rem",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                borderRadius: "0.8rem",
+                border: "1px solid #e2e8f0",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                top: "25px",
+                left: "calc(50% - 150px - 25px)",
+              }}
+            >
+              {/* Скелетон заголовка */}
+              <div
+                style={{
+                  width: "60%",
+                  height: "1.2rem",
+                  background: "rgba(255, 255, 255, 0.2)",
+                  borderRadius: "0.3rem",
+                  marginBottom: "1rem",
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }}
+              />
+
+              {/* Скелетон основного текста */}
+              <div
+                style={{
+                  width: "80%",
+                  height: "1.4rem",
+                  background: "rgba(255, 255, 255, 0.3)",
+                  borderRadius: "0.3rem",
+                  marginBottom: "0.5rem",
+                  animation: "pulse 1.5s ease-in-out infinite 0.2s",
+                }}
+              />
+
+              {/* Скелетон дополнительного текста */}
+              <div
+                style={{
+                  width: "40%",
+                  height: "0.9rem",
+                  background: "rgba(255, 255, 255, 0.15)",
+                  borderRadius: "0.3rem",
+                  marginTop: "1rem",
+                  animation: "pulse 1.5s ease-in-out infinite 0.4s",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : phrase ? (
         <div
           style={{
             marginTop: "1.5rem",
@@ -227,6 +298,9 @@ function PhraseTrainer({ onBackToMain }) {
               transformStyle: "preserve-3d",
               transition: "transform 0.6s ease",
               transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+              outline: "none",
+              WebkitTapHighlightColor: "transparent",
+              userSelect: "none",
             }}
           >
             {/* Лицевая сторона (русский текст) */}
@@ -247,16 +321,15 @@ function PhraseTrainer({ onBackToMain }) {
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
                 top: "25px",
                 left: "calc(50% - 150px - 25px)",
-                
               }}
             >
               <div
                 style={{
                   fontSize: "1.2rem",
-                  fontWeight: '300',
+                  fontWeight: "300",
                   color: "white",
                   marginBottom: "0.5rem",
-                  opacity: '0.7',
+                  opacity: "0.8",
                 }}
               >
                 Переведите на немецкий:
@@ -275,11 +348,11 @@ function PhraseTrainer({ onBackToMain }) {
               <div
                 style={{
                   fontSize: "0.9rem",
-                  fontWeight: '300',
+                  fontWeight: "300",
                   color: "white",
                   marginTop: "1rem",
                   fontStyle: "italic",
-                  opacity: '0.7',
+                  opacity: "0.7",
                 }}
               >
                 Нажмите для проверки
@@ -399,7 +472,7 @@ function PhraseTrainer({ onBackToMain }) {
               <div
                 style={{
                   fontSize: "1.2rem",
-                  opacity: '0.7',
+                  opacity: "0.7",
                   color: "rgba(255, 255, 255, 0.9)",
                   marginBottom: "0.5rem",
                   fontWeight: 300,
@@ -423,39 +496,19 @@ function PhraseTrainer({ onBackToMain }) {
               <div
                 style={{
                   fontSize: "0.9rem",
-                  opacity: '0.7',
+                  opacity: "0.7",
                   color: "rgba(255, 255, 255, 0.8)",
                   marginTop: "1rem",
                   fontStyle: "italic",
-                  fontWeight:"300"
+                  fontWeight: "300",
                 }}
               >
                 Нажмите для возврата
               </div>
-
-              {/* Индикатор AI-генерации */}
-              {generatingSimilar && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "0.8rem",
-                    right: "0.8rem",
-                    fontSize: "0.8rem",
-                    color: "#fbbf24",
-                    fontWeight: 500,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.3rem",
-                  }}
-                >
-                  <Sparkles size={12} />
-                  AI генерирует...
-                </div>
-              )}
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Отображение ошибки */}
       {error && (
@@ -499,6 +552,16 @@ function PhraseTrainer({ onBackToMain }) {
           }
         }
 
+        @keyframes pulse {
+          0%,
+          100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+
         /* Скрываем скроллбар */
         div::-webkit-scrollbar {
           display: none;
@@ -507,6 +570,25 @@ function PhraseTrainer({ onBackToMain }) {
         div {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+
+        /* Отключаем подсветку при клике */
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          -khtml-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+
+        /* Разрешаем выделение текста только в кнопках */
+        button {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
         }
       `}</style>
     </div>
