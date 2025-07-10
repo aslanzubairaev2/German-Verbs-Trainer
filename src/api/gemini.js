@@ -1,3 +1,10 @@
+import { GoogleGenAI } from "@google/genai";
+import {
+  PHRASE_VOCAB,
+  getRandomTemplate,
+  randomFrom,
+} from "../constants/phraseVocabulary.js";
+
 // API-функции для работы с Gemini (Google AI)
 
 /**
@@ -358,5 +365,249 @@ export async function fetchContextExamples({
   } catch (error) {
     console.error("Fetch Context Examples Error:", error);
     setter(`<b>${correctForm}</b> - правильная форма для "${pronoun}"`);
+  }
+}
+
+// --- Основная функция генерации фразы ---
+export async function fetchGeminiPhrase({ setter }) {
+  setter({ loading: true, data: null, error: null });
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+  if (!apiKey) {
+    setter({
+      loading: false,
+      data: null,
+      error: "API ключ не настроен в .env",
+    });
+    return;
+  }
+
+  // 1. Получаем случайный шаблон фразы
+  const template = getRandomTemplate();
+
+  // 2. Собираем слова согласно шаблону
+  const selectedWords = template.pattern.map((wordType) => {
+    const wordArray = PHRASE_VOCAB[wordType];
+    if (!wordArray) {
+      console.error(`ОШИБКА: Неизвестный тип слова: ${wordType}`);
+      console.error(`Доступные типы:`, Object.keys(PHRASE_VOCAB));
+      return "ich"; // fallback
+    }
+    const selectedWord = randomFrom(wordArray);
+    console.log(`Выбрано слово типа "${wordType}": "${selectedWord}"`);
+    return selectedWord;
+  });
+
+  // Отладочная информация
+  console.log("=== ОТЛАДКА ГЕНЕРАЦИИ ФРАЗЫ ===");
+  console.log("Template:", template.key, template.description);
+  console.log("Pattern:", template.pattern);
+  console.log("Selected words:", selectedWords);
+  console.log("Уникальные слова:", [...new Set(selectedWords)]);
+  console.log("================================");
+
+  // 3. Формируем промпт для Gemini
+  const prompt = `
+    Ты опытный лингвист и методолог, специализирующийся на преподавании немецкого языка для начинающих.
+    
+    Создай ОЧЕНЬ ПРОСТУЮ немецкую фразу для отработки спряжения глаголов (уровень A1, второй урок Петрова).
+    
+    Используй эти слова как основу: ${selectedWords.join(", ")}.
+    Тип фразы: ${template.description}.
+    
+    КАК ЛИНГВИСТ, ТЫ ЗНАЕШЬ:
+    - Какие фразы люди реально используют в речи
+    - Какие конструкции звучат естественно, а какие искусственно
+    - Как правильно сочетать слова для создания осмысленных фраз
+    
+    ПРАВИЛА (как в уроке Петрова):
+    - ТОЛЬКО простые конструкции: Кто + Глагол + (Что/Где/Когда)
+    - Простое спряжение глаголов в настоящем времени
+    - Без сложных дополнений, без косвенных падежей
+    - Без сложных предлогов и конструкций
+    - Короткие фразы (2-4 слова максимум)
+    - Если используешь модальный глагол - ОБЯЗАТЕЛЬНО добавь основной глагол
+    - Фраза должна звучать ЕСТЕСТВЕННО, как в реальной речи
+    - Отрицания: "nicht" с глаголами, "kein" с существительными
+    
+    ЕСТЕСТВЕННЫЕ ФРАЗЫ (ДЕЛАЙ ТАК):
+    - "Ich gehe" (Я иду)
+    - "Du arbeitest" (Ты работаешь)
+    - "Er liest ein Buch" (Он читает книгу)
+    - "Sie trinkt Kaffee" (Она пьёт кофе)
+    - "Wo arbeitest du?" (Где ты работаешь?)
+    - "Wann kommst du?" (Когда ты приходишь?)
+    - "Ich habe Geld" (У меня есть деньги)
+    - "Du kannst Geld verdienen" (Ты можешь зарабатывать деньги)
+    - "Du musst zur Schule gehen" (Ты должен идти в школу)
+    - "Du kommst nicht" (Ты не приходишь) - richtig!
+    - "Ich habe kein Geld" (У меня нет денег) - richtig!
+    - "Du arbeitest nicht" (Ты не работаешь) - richtig!
+    
+    НЕЕСТЕСТВЕННЫЕ ФРАЗЫ (НЕ ДЕЛАЙ ТАК):
+    - "Du kannst Geld haben" (Ты можешь иметь деньги) - неестественно
+    - "Ich kann Zeit haben" (Я могу иметь время) - неестественно
+    - "Du kommst kein" (Ты не приходишь) - неправильно! Должно быть "Du kommst nicht"
+    - "Ich habe nicht Geld" (У меня нет денег) - неправильно! Должно быть "Ich habe kein Geld"
+    - "Er gibt mir niemals Geld zum Supermarkt" (слишком сложно)
+    - "Ihr könnt Geld" (неполная фраза)
+    
+    Цель: отработка простого спряжения глаголов до автоматизма через ЕСТЕСТВЕННЫЕ фразы.
+    
+    Дай JSON вида: { "german": "...", "russian": "..." }
+    Не добавляй ничего кроме JSON.
+  `;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash-latest",
+      contents: prompt,
+    });
+
+    // Новый формат: JSON приходит в response.candidates[0].content.parts[0].text
+    const rawText = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error("Пустой ответ от Gemini");
+    }
+
+    // Удаляем обёртку ```json ... ``` если она есть
+    let cleanedText = rawText.trim();
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText
+        .replace(/^```json\s*/, "")
+        .replace(/```$/, "")
+        .trim();
+    } else if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText
+        .replace(/^```\s*/, "")
+        .replace(/```$/, "")
+        .trim();
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (e) {
+      throw new Error("Не удалось распарсить JSON от Gemini");
+    }
+
+    setter({ loading: false, data: parsed, error: null });
+  } catch (error) {
+    console.error("Fetch Gemini Phrase Error:", error);
+    setter({
+      loading: false,
+      data: null,
+      error: error.message || "Не удалось получить фразу от Gemini.",
+    });
+  }
+}
+
+/**
+ * Сгенерировать похожую фразу на основе существующей через Gemini
+ * @param {object} basePhrase - базовая фраза для генерации похожих
+ * @param {function} setter - функция для установки состояния
+ */
+export async function generateSimilarPhrase({ basePhrase, setter }) {
+  setter({ loading: true, data: null, error: null });
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+  if (!apiKey) {
+    setter({
+      loading: false,
+      data: null,
+      error: "API ключ не настроен в .env",
+    });
+    return;
+  }
+
+  if (!basePhrase || !basePhrase.german) {
+    setter({
+      loading: false,
+      data: null,
+      error: "Базовая фраза не определена",
+    });
+    return;
+  }
+
+  const prompt = `
+    Ты опытный лингвист и методолог, специализирующийся на преподавании немецкого языка для начинающих.
+    
+    Создай ПОХОЖУЮ немецкую фразу на основе этой: "${basePhrase.german}" (${basePhrase.russian}).
+    
+    КАК ЛИНГВИСТ, ТЫ ЗНАЕШЬ:
+    - Какие фразы люди реально используют в речи
+    - Какие конструкции звучат естественно
+    - Как правильно сочетать слова для создания осмысленных фраз
+    
+    ПРАВИЛА ГЕНЕРАЦИИ ПОХОЖЕЙ ФРАЗЫ:
+    - Сохрани ТОЧНО ТАКУЮ ЖЕ структуру и тип фразы
+    - Используй ТОТ ЖЕ тип времени (настоящее/прошедшее/будущее)
+    - Сохрани ТОТ ЖЕ тип (утверждение/вопрос/отрицание)
+    - Замени только ключевые слова, но сохрани грамматическую структуру
+    - Фраза должна быть ТАКОЙ ЖЕ сложности (уровень A1)
+    - Используй ТОЛЬКО простые конструкции из второго урока Петрова
+    
+    ПРИМЕРЫ:
+    Если базовая фраза: "Ich gehe zur Schule." (Я иду в школу)
+    То похожие: "Du gehst zur Arbeit." (Ты идёшь на работу)
+                "Er geht ins Kino." (Он идёт в кино)
+                "Sie geht zum Arzt." (Она идёт к врачу)
+    
+    Если базовая фраза: "Wann kommst du?" (Когда ты приходишь?)
+    То похожие: "Wann gehst du?" (Когда ты идёшь?)
+                "Wann arbeitest du?" (Когда ты работаешь?)
+                "Wann trinkst du?" (Когда ты пьёшь?)
+    
+    Если базовая фраза: "Ich habe kein Geld." (У меня нет денег)
+    То похожие: "Du hast keine Zeit." (У тебя нет времени)
+                "Er hat kein Auto." (У него нет машины)
+                "Sie hat kein Buch." (У неё нет книги)
+    
+    Цель: создать ЕСТЕСТВЕННУЮ фразу с ТОЧНО ТАКОЙ ЖЕ структурой.
+    
+    Дай JSON вида: { "german": "...", "russian": "..." }
+    Не добавляй ничего кроме JSON.
+  `;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash-latest",
+      contents: prompt,
+    });
+
+    const rawText = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error("Пустой ответ от Gemini");
+    }
+
+    // Удаляем обёртку ```json ... ``` если она есть
+    let cleanedText = rawText.trim();
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText
+        .replace(/^```json\s*/, "")
+        .replace(/```$/, "")
+        .trim();
+    } else if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText
+        .replace(/^```\s*/, "")
+        .replace(/```$/, "")
+        .trim();
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (e) {
+      throw new Error("Не удалось распарсить JSON от Gemini");
+    }
+
+    setter({ loading: false, data: parsed, error: null });
+  } catch (error) {
+    console.error("Generate Similar Phrase Error:", error);
+    setter({
+      loading: false,
+      data: null,
+      error: error.message || "Не удалось сгенерировать похожую фразу.",
+    });
   }
 }

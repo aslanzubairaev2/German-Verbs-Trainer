@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   RefreshCw,
   ChevronDown,
+  Home,
 } from "lucide-react";
 import { allVerbs } from "./verbsData.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 import VerbListModal from "./components/VerbListModal.js";
@@ -39,6 +40,7 @@ import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
 import StartScreen from "./components/StartScreen";
 import PracticeBox from "./components/PracticeBox";
 import PracticeCompletionModal from "./components/PracticeCompletionModal";
+import PhraseTrainer from "./components/PhraseTrainer";
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 
@@ -94,6 +96,7 @@ function GermanVerbsApp() {
   const [streak, setStreak] = useState(0);
   const [errors, setErrors] = useState(0);
   const [total, setTotal] = useState(0);
+  const [showPhraseTrainer, setShowPhraseTrainer] = useState(false);
 
   // --- DERIVED STATE & MEMOS ---
   const availableVerbsForProgression = useMemo(
@@ -371,8 +374,23 @@ function GermanVerbsApp() {
 
   // --- RENDER ---
   if (!audioReady) {
-    // Показываем отдельный компонент начального экрана, пока не активирован звук
-    return <StartScreen onStart={() => setAudioReady(true)} />;
+    // Показываем стартовый экран или PhraseTrainer
+    if (showPhraseTrainer) {
+      return (
+        <div>
+          <PhraseTrainer />
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <button
+              onClick={() => setShowPhraseTrainer(false)}
+              style={{ padding: '0.6rem 1.5rem', borderRadius: '0.7rem', background: 'linear-gradient(90deg, #2563eb 0%, #7c3aed 100%)', color: '#fff', border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', marginTop: 8 }}
+            >
+              На главную
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <StartScreen onStart={() => setAudioReady(true)} onStartPhrases={() => setShowPhraseTrainer(true)} />;
   }
 
   const currentIndexInAvailable = availableVerbsForProgression.findIndex(
@@ -452,6 +470,13 @@ function GermanVerbsApp() {
                   className="header-icon-btn"
                 >
                   <Settings />
+                </button>
+                <button
+                  onClick={() => setAudioReady(false)}
+                  title="На главную"
+                  className="header-icon-btn"
+                >
+                  <Home />
                 </button>
               </div>
             </header>

@@ -11,21 +11,28 @@ import React from "react";
  * - Описание стало короче и меньше по размеру.
  * - Шрифт заголовка и описания более нейтральный, без избыточной жирности.
  */
-function StartScreen({ onStart }) {
+function StartScreen({ onStart, onStartPhrases }) {
   return (
     <div className="start-screen">
-      <div className="start-box">
-        <h1>Тренажёр немецких глаголов</h1>
-        <p>Учите спряжения и формы немецких глаголов просто и удобно.</p>
-        <button onClick={onStart}>Начать</button>
+      <div className="cards-container">
+        {/* Карточка: Отработка глаголов */}
+        <div className="start-card card-verbs">
+          <h2>Отработка глаголов</h2>
+          <p>Учите спряжения и формы немецких глаголов просто и удобно.</p>
+          <button className="btn-verbs" onClick={onStart}>
+            Начать
+          </button>
+        </div>
+        {/* Карточка: Отработка фраз */}
+        <div className="start-card card-phrases">
+          <h2>Отработка фраз</h2>
+          <p>Тренируйте полезные немецкие фразы для повседневного общения.</p>
+          <button className="btn-phrases" onClick={onStartPhrases}>
+            Начать
+          </button>
+        </div>
       </div>
-      {/* 
-        Стили для начального экрана.
-        - Убрана иконка.
-        - Описание и заголовок стали компактнее.
-        - Кнопка без эмодзи.
-        - Шрифт более нейтральный.
-      */}
+      {/* Минималистичные стили для двух карточек */}
       <style>{`
         .start-screen {
           position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
@@ -76,12 +83,107 @@ function StartScreen({ onStart }) {
           transform: translateY(-2px) scale(1.035);
           box-shadow: 0 8px 24px rgba(37, 99, 235, 0.18);
         }
+        .cards-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1.2rem;
+          align-items: center;
+          justify-content: center;
+        }
+        .start-card {
+          position: relative;
+          text-align: center;
+          padding: 2rem 1.5rem 2.2rem 1.5rem;
+          background: #fff;
+          border-radius: 1.1rem;
+          box-shadow: 0 8px 32px rgba(37,99,235,0.10), 0 1.5px 8px rgba(0,0,0,0.06);
+          max-width: 340px;
+          min-width: 240px;
+          margin: 1rem 0;
+          animation: fadeInUp 0.7s cubic-bezier(.23,1.01,.32,1) both;
+          border: none;
+        }
+        .card-verbs::before {
+          content: "";
+          position: absolute;
+          left: 0; top: 1.2rem; bottom: 1.2rem;
+          width: 7px;
+          border-radius: 6px;
+          background: linear-gradient(180deg, #2563eb 0%, #7c3aed 100%);
+        }
+        .card-phrases::before {
+          content: "";
+          position: absolute;
+          left: 0; top: 1.2rem; bottom: 1.2rem;
+          width: 7px;
+          border-radius: 6px;
+          background: linear-gradient(180deg, #fbbf24 0%, #ef4444 100%);
+        }
+        .start-card h2 {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #1e293b;
+          margin-bottom: 0.1rem;
+          letter-spacing: -0.5px;
+          font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .start-card p {
+          color: #475569;
+          font-size: 0.98rem;
+          margin-bottom: 1.7rem;
+          line-height: 1.4;
+          font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .btn-verbs {
+          padding: 0.7rem 2rem;
+          background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+          color: #fff;
+          border: none;
+          border-radius: 0.7rem;
+          font-size: 1.08rem;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(37, 99, 235, 0.13);
+          cursor: pointer;
+          transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+          outline: none;
+        }
+        .btn-verbs:hover, .btn-verbs:focus {
+          background: linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
+          transform: translateY(-2px) scale(1.035);
+          box-shadow: 0 8px 24px rgba(37, 99, 235, 0.18);
+        }
+        .btn-phrases {
+          padding: 0.7rem 2rem;
+          background: linear-gradient(90deg, #fbbf24 0%, #ef4444 100%);
+          color: #fff;
+          border: none;
+          border-radius: 0.7rem;
+          font-size: 1.08rem;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(251, 191, 36, 0.13);
+          cursor: pointer;
+          transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+          outline: none;
+        }
+        .btn-phrases:hover, .btn-phrases:focus {
+          background: linear-gradient(90deg, #ef4444 0%, #fbbf24 100%);
+          transform: translateY(-2px) scale(1.035);
+          box-shadow: 0 8px 24px rgba(251, 191, 36, 0.18);
+        }
+        @media (max-width: 800px) {
+          .cards-container { flex-direction: column; gap: 1.2rem; }
+        }
         @media (max-width: 480px) {
           .start-box {
             padding: 1rem 0.5rem 1.2rem 0.5rem;
             max-width: 98vw;
           }
           .start-box h1 { font-size: 1.1rem; }
+          .start-card {
+            padding: 1rem 0.5rem 1.2rem 0.5rem;
+            max-width: 98vw;
+          }
+          .start-card h2 { font-size: 1.05rem; }
         }
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(32px);}
