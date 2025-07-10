@@ -376,21 +376,14 @@ function GermanVerbsApp() {
   if (!audioReady) {
     // Показываем стартовый экран или PhraseTrainer
     if (showPhraseTrainer) {
-      return (
-        <div>
-          <PhraseTrainer />
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <button
-              onClick={() => setShowPhraseTrainer(false)}
-              style={{ padding: '0.6rem 1.5rem', borderRadius: '0.7rem', background: 'linear-gradient(90deg, #2563eb 0%, #7c3aed 100%)', color: '#fff', border: 'none', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', marginTop: 8 }}
-            >
-              На главную
-            </button>
-          </div>
-        </div>
-      );
+      return <PhraseTrainer onBackToMain={() => setShowPhraseTrainer(false)} />;
     }
-    return <StartScreen onStart={() => setAudioReady(true)} onStartPhrases={() => setShowPhraseTrainer(true)} />;
+    return (
+      <StartScreen
+        onStart={() => setAudioReady(true)}
+        onStartPhrases={() => setShowPhraseTrainer(true)}
+      />
+    );
   }
 
   const currentIndexInAvailable = availableVerbsForProgression.findIndex(
