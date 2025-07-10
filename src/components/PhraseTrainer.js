@@ -1,7 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
-import { Sparkles, Volume2, RotateCcw, ChevronLeft } from "lucide-react";
+import {
+  Sparkles,
+  Volume2,
+  RotateCcw,
+  ChevronLeft,
+  HelpCircle,
+  ChevronDown,
+} from "lucide-react";
 
 /**
  * Компонент для тренировки немецких фраз из локального файла
@@ -16,6 +24,10 @@ function PhraseTrainer({ onBackToMain }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
+  const [explanationText, setExplanationText] = useState("");
+  const [generatingExplanation, setGeneratingExplanation] = useState(false);
+  const [modalAnimation, setModalAnimation] = useState("closed");
   const cardRef = useRef(null);
 
   // Функция озвучивания
@@ -85,6 +97,73 @@ function PhraseTrainer({ onBackToMain }) {
   const speakGerman = () => {
     if (phrase) {
       speak(phrase.german, "de-DE");
+    }
+  };
+
+  // Генерация пояснения через Gemini
+  const generateExplanation = async () => {
+    if (!phrase || generatingExplanation) return;
+
+    setGeneratingExplanation(true);
+    setExplanationText("");
+    setShowExplanationModal(true);
+    setModalAnimation("opening");
+
+    // Запускаем анимацию открытия
+    setTimeout(() => {
+      setModalAnimation("open");
+    }, 10);
+
+    const prompt = `
+      Объясни простым языком, почему немецкая фраза "${phrase.german}" переводится как "${phrase.russian}".
+      
+      Обрати внимание на:
+      - Спряжение глагола
+      - Порядок слов
+      - Грамматические особенности
+      - Логику перевода
+      
+      Объяснение должно быть понятным для начинающих изучать немецкий язык (уровень A1-A2).
+      Пиши кратко, но информативно.
+    `;
+
+    try {
+      const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      if (!apiKey) {
+        setExplanationText("API ключ не настроен");
+        setGeneratingExplanation(false);
+        return;
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 200,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const explanation =
+        result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
+        "Не удалось получить пояснение";
+      setExplanationText(explanation);
+    } catch (error) {
+      console.error("Generate Explanation Error:", error);
+      setExplanationText("Не удалось получить пояснение");
+    } finally {
+      setGeneratingExplanation(false);
     }
   };
 
@@ -167,6 +246,15 @@ function PhraseTrainer({ onBackToMain }) {
     { value: "question", label: "Вопросы" },
     { value: "negative", label: "Отрицания" },
   ];
+
+  // Функция закрытия модального окна с анимацией
+  const closeExplanationModal = () => {
+    setModalAnimation("closing");
+    setTimeout(() => {
+      setShowExplanationModal(false);
+      setModalAnimation("closed");
+    }, 300);
+  };
 
   return (
     <div
@@ -290,7 +378,7 @@ function PhraseTrainer({ onBackToMain }) {
           style={{
             marginTop: "1.5rem",
             perspective: "1000px",
-            minHeight: '400px',
+            minHeight: "400px",
           }}
         >
           <div
@@ -361,7 +449,7 @@ function PhraseTrainer({ onBackToMain }) {
           style={{
             marginTop: "1.5rem",
             perspective: "1000px",
-            minHeight: '400px',
+            minHeight: "400px",
           }}
         >
           <div
@@ -468,93 +556,141 @@ function PhraseTrainer({ onBackToMain }) {
                 left: "calc(50% - 150px - 25px)",
               }}
             >
-              {/* Кнопка генерации похожей фразы */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  generateSimilar();
-                }}
-                disabled={generatingSimilar}
+              {/* Кнопки в правом нижнем углу */}
+              <div
                 style={{
                   position: "absolute",
-                  top: "0.8rem",
+                  bottom: "0.8rem",
                   right: "0.8rem",
-                  padding: "0.5rem",
-                  borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.2)",
-                  color: "#fff",
-                  border: "none",
-                  cursor: generatingSimilar ? "not-allowed" : "pointer",
                   display: "flex",
+                  flexDirection: "column",
+                  gap: "0.5rem",
                   alignItems: "center",
-                  justifyContent: "center",
-                  width: "2.5rem",
-                  height: "2.5rem",
-                  opacity: generatingSimilar ? 0.7 : 1,
-                  transition: "all 0.2s ease",
-                  backdropFilter: "blur(10px)",
                 }}
-                title="Сгенерировать похожую фразу через AI"
               >
-                {generatingSimilar ? (
-                  <div
-                    style={{
-                      width: "1rem",
-                      height: "1rem",
-                      border: "2px solid transparent",
-                      borderTop: "2px solid #fff",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite",
-                    }}
-                  />
-                ) : (
-                  <Sparkles size={16} />
-                )}
-              </button>
+                {/* Кнопка озвучивания */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakGerman();
+                  }}
+                  disabled={isSpeaking}
+                  style={{
+                    padding: "0.5rem",
+                    borderRadius: "50%",
+                    background: "rgba(255, 255, 255, 0.2)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: isSpeaking ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    opacity: isSpeaking ? 0.7 : 1,
+                    transition: "all 0.2s ease",
+                    backdropFilter: "blur(10px)",
+                  }}
+                  title="Озвучить фразу"
+                >
+                  {isSpeaking ? (
+                    <div
+                      style={{
+                        width: "1rem",
+                        height: "1rem",
+                        border: "2px solid transparent",
+                        borderTop: "2px solid #fff",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                  ) : (
+                    <Volume2 size={16} />
+                  )}
+                </button>
 
-              {/* Кнопка озвучивания */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  speakGerman();
-                }}
-                disabled={isSpeaking}
-                style={{
-                  position: "absolute",
-                  top: "0.8rem",
-                  left: "0.8rem",
-                  padding: "0.5rem",
-                  borderRadius: "50%",
-                  background: "rgba(255, 255, 255, 0.2)",
-                  color: "#fff",
-                  border: "none",
-                  cursor: isSpeaking ? "not-allowed" : "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "2.5rem",
-                  height: "2.5rem",
-                  opacity: isSpeaking ? 0.7 : 1,
-                  transition: "all 0.2s ease",
-                  backdropFilter: "blur(10px)",
-                }}
-                title="Озвучить фразу"
-              >
-                {isSpeaking ? (
-                  <div
-                    style={{
-                      width: "1rem",
-                      height: "1rem",
-                      border: "2px solid transparent",
-                      borderTop: "2px solid #fff",
-                      borderRadius: "50%",
-                      animation: "spin 1s linear infinite",
-                    }}
-                  />
-                ) : (
-                  <Volume2 size={16} />
-                )}
-              </button>
+                {/* Кнопка пояснения */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    generateExplanation();
+                  }}
+                  disabled={generatingExplanation}
+                  style={{
+                    padding: "0.5rem",
+                    borderRadius: "50%",
+                    background: "rgba(255, 255, 255, 0.2)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: generatingExplanation ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    opacity: generatingExplanation ? 0.7 : 1,
+                    transition: "all 0.2s ease",
+                    backdropFilter: "blur(10px)",
+                  }}
+                  title="Получить пояснение"
+                >
+                  {generatingExplanation ? (
+                    <div
+                      style={{
+                        width: "1rem",
+                        height: "1rem",
+                        border: "2px solid transparent",
+                        borderTop: "2px solid #fff",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                  ) : (
+                    <HelpCircle size={16} />
+                  )}
+                </button>
+
+                {/* Кнопка генерации похожей фразы */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    generateSimilar();
+                  }}
+                  disabled={generatingSimilar}
+                  style={{
+                    padding: "0.5rem",
+                    borderRadius: "50%",
+                    background: "rgba(255, 255, 255, 0.2)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: generatingSimilar ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "2.5rem",
+                    height: "2.5rem",
+                    opacity: generatingSimilar ? 0.7 : 1,
+                    transition: "all 0.2s ease",
+                    backdropFilter: "blur(10px)",
+                  }}
+                  title="Сгенерировать похожую фразу через AI"
+                >
+                  {generatingSimilar ? (
+                    <div
+                      style={{
+                        width: "1rem",
+                        height: "1rem",
+                        border: "2px solid transparent",
+                        borderTop: "2px solid #fff",
+                        borderRadius: "50%",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                  ) : (
+                    <Sparkles size={16} />
+                  )}
+                </button>
+              </div>
 
               <div
                 style={{
@@ -648,6 +784,170 @@ function PhraseTrainer({ onBackToMain }) {
         </div>
       )}
 
+      {/* Модальное окно пояснений */}
+      {showExplanationModal && (
+        <div
+          className={`explanation-modal ${modalAnimation}`}
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: "50vh",
+            background: "#fff",
+            borderTopLeftRadius: "1rem",
+            borderTopRightRadius: "1rem",
+            boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.15)",
+            zIndex: 1000,
+            display: "flex",
+            flexDirection: "column",
+            willChange: "transform, opacity",
+          }}
+          onTouchStart={(e) => {
+            const touch = e.touches[0];
+            e.currentTarget.startY = touch.clientY;
+          }}
+          onTouchMove={(e) => {
+            const touch = e.touches[0];
+            const deltaY = touch.clientY - e.currentTarget.startY;
+            if (deltaY > 0) {
+              e.currentTarget.style.transform = `translateY(${deltaY}px)`;
+            }
+          }}
+          onTouchEnd={(e) => {
+            const touch = e.changedTouches[0];
+            const deltaY = touch.clientY - e.currentTarget.startY;
+            if (deltaY > 100) {
+              closeExplanationModal();
+            } else {
+              e.currentTarget.style.transform = "translateY(0)";
+            }
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.startY = e.clientY;
+            e.currentTarget.isDragging = true;
+          }}
+          onMouseMove={(e) => {
+            if (e.currentTarget.isDragging) {
+              const deltaY = e.clientY - e.currentTarget.startY;
+              if (deltaY > 0) {
+                e.currentTarget.style.transform = `translateY(${deltaY}px)`;
+              }
+            }
+          }}
+          onMouseUp={(e) => {
+            if (e.currentTarget.isDragging) {
+              const deltaY = e.clientY - e.currentTarget.startY;
+              if (deltaY > 100) {
+                closeExplanationModal();
+              } else {
+                e.currentTarget.style.transform = "translateY(0)";
+              }
+              e.currentTarget.isDragging = false;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (e.currentTarget.isDragging) {
+              const deltaY = e.clientY - e.currentTarget.startY;
+              if (deltaY > 100) {
+                closeExplanationModal();
+              } else {
+                e.currentTarget.style.transform = "translateY(0)";
+              }
+              e.currentTarget.isDragging = false;
+            }
+          }}
+        >
+          {/* Заголовок с кнопкой закрытия */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "1rem 1.5rem",
+              borderBottom: "1px solid #e2e8f0",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "1.1rem",
+                fontWeight: 600,
+                color: "#1e293b",
+              }}
+            >
+              Пояснение к фразе
+            </h3>
+            <button
+              onClick={closeExplanationModal}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0.5rem",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#64748b",
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#f1f5f9";
+                e.target.style.color = "#1e293b";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "none";
+                e.target.style.color = "#64748b";
+              }}
+            >
+              <ChevronDown size={20} />
+            </button>
+          </div>
+
+          {/* Контент */}
+          <div
+            style={{
+              flex: 1,
+              padding: "1.5rem",
+              overflowY: "auto",
+            }}
+          >
+            {generatingExplanation ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                  color: "#64748b",
+                }}
+              >
+                <div
+                  style={{
+                    width: "1.5rem",
+                    height: "1.5rem",
+                    border: "2px solid transparent",
+                    borderTop: "2px solid #64748b",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite",
+                    marginRight: "0.5rem",
+                  }}
+                />
+                Генерирую пояснение...
+              </div>
+            ) : (
+              <div className="explanation-markdown">
+                <ReactMarkdown>
+                  {explanationText ||
+                    "Нажмите кнопку пояснения для получения объяснения"}
+                </ReactMarkdown>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes spin {
           from {
@@ -668,7 +968,67 @@ function PhraseTrainer({ onBackToMain }) {
           }
         }
 
-        /* Скрываем скроллбар */
+        .explanation-modal.closed {
+          transform: translateY(100%);
+          opacity: 0;
+          pointer-events: none;
+        }
+        .explanation-modal.opening {
+          transform: translateY(100%);
+          opacity: 1;
+        }
+        .explanation-modal.open {
+          transform: translateY(0);
+          opacity: 1;
+          transition: transform 0.3s cubic-bezier(0.4, 1.3, 0.6, 1),
+            opacity 0.3s;
+        }
+        .explanation-modal.closing {
+          transform: translateY(100%);
+          opacity: 0;
+          transition: transform 0.3s, opacity 0.3s;
+        }
+        .explanation-markdown {
+          font-size: 1rem;
+          line-height: 1.7;
+          color: #374151;
+        }
+        .explanation-markdown p {
+          margin: 0 0 1.1em 0;
+          padding: 0;
+          text-indent: 1.2em;
+        }
+        .explanation-markdown ul,
+        .explanation-markdown ol {
+          margin: 0 0 1.1em 1.5em;
+          padding: 0;
+        }
+        .explanation-markdown li {
+          margin-bottom: 0.5em;
+        }
+        .explanation-markdown strong {
+          color: #7c3aed;
+        }
+        .explanation-markdown em {
+          color: #a21caf;
+        }
+        .explanation-markdown code {
+          background: #f3f4f6;
+          color: #7c3aed;
+          border-radius: 0.3em;
+          padding: 0.1em 0.3em;
+          font-size: 0.95em;
+        }
+        .explanation-markdown blockquote {
+          border-left: 3px solid #a5b4fc;
+          margin: 0 0 1em 0;
+          padding: 0.5em 1em;
+          color: #6366f1;
+          background: #f8fafc;
+          border-radius: 0.5em;
+        }
+
+        /* Скрываем скроллбара */
         div::-webkit-scrollbar {
           display: none;
         }
