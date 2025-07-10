@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
 import { Sparkles, Volume2, RotateCcw, ChevronLeft } from "lucide-react";
@@ -14,6 +14,9 @@ function PhraseTrainer({ onBackToMain }) {
   const [generatingSimilar, setGeneratingSimilar] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const cardRef = useRef(null);
 
   // Функция озвучивания
   const speak = useCallback((text, lang = "de-DE") => {
@@ -83,6 +86,77 @@ function PhraseTrainer({ onBackToMain }) {
     if (phrase) {
       speak(phrase.german, "de-DE");
     }
+  };
+
+  // Функции для свайпа
+  const handleTouchStart = (e) => {
+    if (loading || generatingSimilar) return;
+    const touch = e.touches[0];
+    setSwipeOffset(0);
+    setIsSwiping(true);
+    cardRef.current.startX = touch.clientX;
+    cardRef.current.startY = touch.clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isSwiping || loading || generatingSimilar) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - cardRef.current.startX;
+    const deltaY = touch.clientY - cardRef.current.startY;
+
+    // Проверяем, что свайп больше горизонтальный, чем вертикальный
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      e.preventDefault();
+      setSwipeOffset(deltaX);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isSwiping || loading || generatingSimilar) return;
+
+    const threshold = 100; // Минимальное расстояние для свайпа
+
+    if (Math.abs(swipeOffset) > threshold) {
+      // Свайп выполнен - загружаем новую фразу
+      fetchPhrase();
+    }
+
+    // Сбрасываем состояние
+    setSwipeOffset(0);
+    setIsSwiping(false);
+  };
+
+  // Поддержка мыши для десктопа
+  const handleMouseDown = (e) => {
+    if (loading || generatingSimilar) return;
+    setSwipeOffset(0);
+    setIsSwiping(true);
+    cardRef.current.startX = e.clientX;
+    cardRef.current.startY = e.clientY;
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isSwiping || loading || generatingSimilar) return;
+    const deltaX = e.clientX - cardRef.current.startX;
+    const deltaY = e.clientY - cardRef.current.startY;
+
+    // Проверяем, что свайп больше горизонтальный, чем вертикальный
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setSwipeOffset(deltaX);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isSwiping || loading || generatingSimilar) return;
+
+    const threshold = 100;
+
+    if (Math.abs(swipeOffset) > threshold) {
+      fetchPhrase();
+    }
+
+    setSwipeOffset(0);
+    setIsSwiping(false);
   };
 
   const phraseTypes = [
@@ -216,6 +290,7 @@ function PhraseTrainer({ onBackToMain }) {
           style={{
             marginTop: "1.5rem",
             perspective: "1000px",
+            minHeight: '400px',
           }}
         >
           <div
@@ -286,21 +361,33 @@ function PhraseTrainer({ onBackToMain }) {
           style={{
             marginTop: "1.5rem",
             perspective: "1000px",
+            minHeight: '400px',
           }}
         >
           <div
+            ref={cardRef}
             onClick={flipCard}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
             style={{
               width: "100%",
               height: "200px",
               position: "relative",
               cursor: "pointer",
               transformStyle: "preserve-3d",
-              transition: "transform 0.6s ease",
-              transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+              transition: isSwiping ? "none" : "transform 0.6s ease",
+              transform: `${
+                isFlipped ? "rotateY(180deg)" : "rotateY(0deg)"
+              } translateX(${swipeOffset}px)`,
               outline: "none",
               WebkitTapHighlightColor: "transparent",
               userSelect: "none",
+              touchAction: "pan-y",
             }}
           >
             {/* Лицевая сторона (русский текст) */}
@@ -539,6 +626,25 @@ function PhraseTrainer({ onBackToMain }) {
           <strong>
             {phraseTypes.find((t) => t.value === selectedType)?.label}
           </strong>
+        </div>
+      )}
+
+      {/* Подсказка о свайпе */}
+      {phrase && !loading && !generatingSimilar && (
+        <div
+          style={{
+            marginTop: "1rem",
+            fontSize: "0.8rem",
+            color: "#94a3b8",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "0.3rem",
+          }}
+        >
+          <span>←</span>
+          <span>Свайпните для новой фразы</span>
+          <span>→</span>
         </div>
       )}
 
