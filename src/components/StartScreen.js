@@ -97,7 +97,7 @@ function StartScreen({ onStart, onStartPhrases }) {
           background: #fff;
           border-radius: 1.1rem;
           box-shadow: 0 8px 32px rgba(37,99,235,0.10), 0 1.5px 8px rgba(0,0,0,0.06);
-          max-width: 340px;
+          max-width: 300px;
           min-width: 240px;
           margin: 1rem 0;
           animation: fadeInUp 0.7s cubic-bezier(.23,1.01,.32,1) both;
@@ -181,7 +181,7 @@ function StartScreen({ onStart, onStartPhrases }) {
           .start-box h1 { font-size: 1.1rem; }
           .start-card {
             padding: 1rem 0.5rem 1.2rem 0.5rem;
-            max-width: 98vw;
+            // max-width: 98vw;
           }
           .start-card h2 { font-size: 1.05rem; }
         }
