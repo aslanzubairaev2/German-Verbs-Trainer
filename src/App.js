@@ -41,6 +41,7 @@ import StartScreen from "./components/StartScreen";
 import PracticeBox from "./components/PracticeBox";
 import PracticeCompletionModal from "./components/PracticeCompletionModal";
 import PhraseTrainer from "./components/PhraseTrainer";
+import InteractivePhrase from "./components/InteractivePhrase";
 
 // --- ОСНОВНЫЕ ДАННЫЕ ---
 

@@ -1,14 +1,15 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
+import GeminiChatModal from "./GeminiChatModal";
+import InteractivePhrase from "./InteractivePhrase";
+import CardPhrase from "./CardPhrase";
 import {
   Sparkles,
   Volume2,
   RotateCcw,
   ChevronLeft,
   HelpCircle,
-  ChevronDown,
 } from "lucide-react";
 
 /**
@@ -24,10 +25,10 @@ function PhraseTrainer({ onBackToMain }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
-  const [showExplanationModal, setShowExplanationModal] = useState(false);
-  const [explanationText, setExplanationText] = useState("");
-  const [generatingExplanation, setGeneratingExplanation] = useState(false);
-  const [modalAnimation, setModalAnimation] = useState("closed");
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [initialChatMessage, setInitialChatMessage] = useState("");
+  const [currentPhraseId, setCurrentPhraseId] = useState(null);
+  const [quotedPhrases, setQuotedPhrases] = useState([]);
   const cardRef = useRef(null);
 
   // Функция озвучивания
@@ -51,6 +52,10 @@ function PhraseTrainer({ onBackToMain }) {
     setError(null);
     setIsFlipped(false); // Сбрасываем переворот при новой фразе
 
+    // Сбрасываем состояние чата при смене фразы
+    setCurrentPhraseId(null);
+    setShowChatModal(false);
+
     const filterType = selectedType === "all" ? null : selectedType;
 
     await fetchLocalPhrase({
@@ -58,6 +63,10 @@ function PhraseTrainer({ onBackToMain }) {
         setLoading(!!loading);
         setPhrase(data);
         setError(error);
+        // Устанавливаем ID новой фразы
+        if (data) {
+          setCurrentPhraseId(`${data.german}-${data.russian}`);
+        }
       },
       filterType,
     });
@@ -76,12 +85,18 @@ function PhraseTrainer({ onBackToMain }) {
     setError(null);
     setIsFlipped(false); // Сбрасываем переворот при новой фразе
 
+    // Сбрасываем состояние чата при смене фразы
+    setCurrentPhraseId(null);
+    setShowChatModal(false);
+
     await generateSimilarPhrase({
       basePhrase: phrase,
       setter: ({ loading, data, error }) => {
         setGeneratingSimilar(!!loading);
         if (data) {
           setPhrase(data);
+          // Устанавливаем ID новой фразы
+          setCurrentPhraseId(`${data.german}-${data.russian}`);
         }
         setError(error);
       },
@@ -100,71 +115,29 @@ function PhraseTrainer({ onBackToMain }) {
     }
   };
 
-  // Генерация пояснения через Gemini
-  const generateExplanation = async () => {
-    if (!phrase || generatingExplanation) return;
+  // Открытие чата с Gemini
+  const openChatWithGemini = () => {
+    if (!phrase) return;
 
-    setGeneratingExplanation(true);
-    setExplanationText("");
-    setShowExplanationModal(true);
-    setModalAnimation("opening");
+    console.log("Opening chat for phrase:", phrase);
 
-    // Запускаем анимацию открытия
-    setTimeout(() => {
-      setModalAnimation("open");
-    }, 10);
+    const initialMessage = `Объясни простым языком, почему немецкая фраза "${phrase.german}" переводится как "${phrase.russian}".
 
-    const prompt = `
-      Объясни простым языком, почему немецкая фраза "${phrase.german}" переводится как "${phrase.russian}".
-      
-      Обрати внимание на:
-      - Спряжение глагола
-      - Порядок слов
-      - Грамматические особенности
-      - Логику перевода
-      
-      Объяснение должно быть понятным для начинающих изучать немецкий язык (уровень A1-A2).
-      Пиши кратко, но информативно.
-    `;
+Обрати внимание на:
+- Спряжение глагола
+- Порядок слов  
+- Грамматические особенности
+- Логику перевода
 
-    try {
-      const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-      if (!apiKey) {
-        setExplanationText("API ключ не настроен");
-        setGeneratingExplanation(false);
-        return;
-      }
+Объяснение должно быть понятным для начинающих изучать немецкий язык (уровень A1-A2).`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 200,
-            },
-          }),
-        }
-      );
+    setInitialChatMessage(initialMessage);
+    setShowChatModal(true);
+  };
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      const explanation =
-        result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
-        "Не удалось получить пояснение";
-      setExplanationText(explanation);
-    } catch (error) {
-      console.error("Generate Explanation Error:", error);
-      setExplanationText("Не удалось получить пояснение");
-    } finally {
-      setGeneratingExplanation(false);
-    }
+  // Обработчик цитирования фразы
+  const handleQuotePhrase = (quotedPhrase) => {
+    setQuotedPhrases((prev) => [...prev, quotedPhrase]);
   };
 
   // Функции для свайпа
@@ -247,13 +220,9 @@ function PhraseTrainer({ onBackToMain }) {
     { value: "negative", label: "Отрицания" },
   ];
 
-  // Функция закрытия модального окна с анимацией
-  const closeExplanationModal = () => {
-    setModalAnimation("closing");
-    setTimeout(() => {
-      setShowExplanationModal(false);
-      setModalAnimation("closed");
-    }, 300);
+  // Функция закрытия чата
+  const closeChatModal = () => {
+    setShowChatModal(false);
   };
 
   return (
@@ -609,45 +578,30 @@ function PhraseTrainer({ onBackToMain }) {
                   )}
                 </button>
 
-                {/* Кнопка пояснения */}
+                {/* Кнопка чата с Gemini */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    generateExplanation();
+                    openChatWithGemini();
                   }}
-                  disabled={generatingExplanation}
                   style={{
                     padding: "0.5rem",
                     borderRadius: "50%",
                     background: "rgba(255, 255, 255, 0.2)",
                     color: "#fff",
                     border: "none",
-                    cursor: generatingExplanation ? "not-allowed" : "pointer",
+                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     width: "2.5rem",
                     height: "2.5rem",
-                    opacity: generatingExplanation ? 0.7 : 1,
                     transition: "all 0.2s ease",
                     backdropFilter: "blur(10px)",
                   }}
-                  title="Получить пояснение"
+                  title="Чат с Gemini"
                 >
-                  {generatingExplanation ? (
-                    <div
-                      style={{
-                        width: "1rem",
-                        height: "1rem",
-                        border: "2px solid transparent",
-                        borderTop: "2px solid #fff",
-                        borderRadius: "50%",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
-                  ) : (
-                    <HelpCircle size={16} />
-                  )}
+                  <HelpCircle size={16} />
                 </button>
 
                 {/* Кнопка генерации похожей фразы */}
@@ -714,7 +668,11 @@ function PhraseTrainer({ onBackToMain }) {
                   paddingLeft: "3rem",
                 }}
               >
-                {phrase.german}
+                <CardPhrase
+                  phrase={phrase}
+                  speak={speak}
+                  isSpeaking={isSpeaking}
+                />
               </div>
               <div
                 style={{
@@ -765,6 +723,66 @@ function PhraseTrainer({ onBackToMain }) {
         </div>
       )}
 
+      {/* Цитированные фразы */}
+      {quotedPhrases.length > 0 && (
+        <div style={{ marginTop: "2rem" }}>
+          <h3
+            style={{
+              fontSize: "1rem",
+              color: "#374151",
+              marginBottom: "1rem",
+              textAlign: "center",
+            }}
+          >
+            📝 Цитированные фразы ({quotedPhrases.length})
+          </h3>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.8rem",
+              maxHeight: "200px",
+              overflowY: "auto",
+              padding: "1rem",
+              background: "#f8fafc",
+              borderRadius: "0.8rem",
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            {quotedPhrases.map((quotedPhrase, index) => (
+              <div
+                key={index}
+                style={{
+                  padding: "0.8rem",
+                  background: "white",
+                  borderRadius: "0.5rem",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                }}
+              >
+                <InteractivePhrase
+                  phrase={quotedPhrase}
+                  onQuote={handleQuotePhrase}
+                  speak={speak}
+                  isSpeaking={isSpeaking}
+                  disableClick={true}
+                />
+                <div
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "#64748b",
+                    marginTop: "0.5rem",
+                    fontStyle: "italic",
+                  }}
+                >
+                  {quotedPhrase.russian}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Подсказка о свайпе */}
       {phrase && !loading && !generatingSimilar && (
         <div
@@ -784,171 +802,15 @@ function PhraseTrainer({ onBackToMain }) {
         </div>
       )}
 
-      {/* Модальное окно пояснений */}
-      {showExplanationModal && (
-        <div
-          className={`explanation-modal ${modalAnimation}`}
-          style={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: "50vh",
-            background: "#fff",
-            borderTopLeftRadius: "1rem",
-            borderTopRightRadius: "1rem",
-            boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.15)",
-            zIndex: 1000,
-            display: "flex",
-            flexDirection: "column",
-            willChange: "transform, opacity",
-          }}
-          onTouchStart={(e) => {
-            const touch = e.touches[0];
-            e.currentTarget.startY = touch.clientY;
-          }}
-          onTouchMove={(e) => {
-            const touch = e.touches[0];
-            const deltaY = touch.clientY - e.currentTarget.startY;
-            if (deltaY > 0) {
-              e.currentTarget.style.transform = `translateY(${deltaY}px)`;
-            }
-          }}
-          onTouchEnd={(e) => {
-            const touch = e.changedTouches[0];
-            const deltaY = touch.clientY - e.currentTarget.startY;
-            if (deltaY > 100) {
-              closeExplanationModal();
-            } else {
-              e.currentTarget.style.transform = "translateY(0)";
-            }
-          }}
-          onMouseDown={(e) => {
-            e.currentTarget.startY = e.clientY;
-            e.currentTarget.isDragging = true;
-          }}
-          onMouseMove={(e) => {
-            if (e.currentTarget.isDragging) {
-              const deltaY = e.clientY - e.currentTarget.startY;
-              if (deltaY > 0) {
-                e.currentTarget.style.transform = `translateY(${deltaY}px)`;
-              }
-            }
-          }}
-          onMouseUp={(e) => {
-            if (e.currentTarget.isDragging) {
-              const deltaY = e.clientY - e.currentTarget.startY;
-              if (deltaY > 100) {
-                closeExplanationModal();
-              } else {
-                e.currentTarget.style.transform = "translateY(0)";
-              }
-              e.currentTarget.isDragging = false;
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (e.currentTarget.isDragging) {
-              const deltaY = e.clientY - e.currentTarget.startY;
-              if (deltaY > 100) {
-                closeExplanationModal();
-              } else {
-                e.currentTarget.style.transform = "translateY(0)";
-              }
-              e.currentTarget.isDragging = false;
-            }
-          }}
-        >
-          {/* Заголовок с кнопкой закрытия */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "1rem 1.5rem",
-              borderBottom: "1px solid #e2e8f0",
-            }}
-          >
-            <h3
-              style={{
-                margin: 0,
-                fontSize: "1.1rem",
-                fontWeight: 600,
-                color: "#1e293b",
-              }}
-            >
-              Пояснение к фразе
-            </h3>
-            <button
-              onClick={closeExplanationModal}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "0.5rem",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#64748b",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#f1f5f9";
-                e.target.style.color = "#1e293b";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "none";
-                e.target.style.color = "#64748b";
-              }}
-            >
-              <ChevronDown size={20} />
-            </button>
-          </div>
+      {/* Чат с Gemini */}
+      <GeminiChatModal
+        show={showChatModal}
+        initialMessage={initialChatMessage}
+        onClose={closeChatModal}
+        phraseId={currentPhraseId}
+      />
 
-          {/* Контент */}
-          <div
-            style={{
-              flex: 1,
-              padding: "1.5rem",
-              overflowY: "auto",
-            }}
-          >
-            {generatingExplanation ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  height: "100%",
-                  color: "#64748b",
-                }}
-              >
-                <div
-                  style={{
-                    width: "1.5rem",
-                    height: "1.5rem",
-                    border: "2px solid transparent",
-                    borderTop: "2px solid #64748b",
-                    borderRadius: "50%",
-                    animation: "spin 1s linear infinite",
-                    marginRight: "0.5rem",
-                  }}
-                />
-                Генерирую пояснение...
-              </div>
-            ) : (
-              <div className="explanation-markdown">
-                <ReactMarkdown>
-                  {explanationText ||
-                    "Нажмите кнопку пояснения для получения объяснения"}
-                </ReactMarkdown>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           from {
             transform: rotate(0deg);
@@ -966,66 +828,6 @@ function PhraseTrainer({ onBackToMain }) {
           50% {
             opacity: 0.5;
           }
-        }
-
-        .explanation-modal.closed {
-          transform: translateY(100%);
-          opacity: 0;
-          pointer-events: none;
-        }
-        .explanation-modal.opening {
-          transform: translateY(100%);
-          opacity: 1;
-        }
-        .explanation-modal.open {
-          transform: translateY(0);
-          opacity: 1;
-          transition: transform 0.3s cubic-bezier(0.4, 1.3, 0.6, 1),
-            opacity 0.3s;
-        }
-        .explanation-modal.closing {
-          transform: translateY(100%);
-          opacity: 0;
-          transition: transform 0.3s, opacity 0.3s;
-        }
-        .explanation-markdown {
-          font-size: 1rem;
-          line-height: 1.7;
-          color: #374151;
-        }
-        .explanation-markdown p {
-          margin: 0 0 1.1em 0;
-          padding: 0;
-          text-indent: 1.2em;
-        }
-        .explanation-markdown ul,
-        .explanation-markdown ol {
-          margin: 0 0 1.1em 1.5em;
-          padding: 0;
-        }
-        .explanation-markdown li {
-          margin-bottom: 0.5em;
-        }
-        .explanation-markdown strong {
-          color: #7c3aed;
-        }
-        .explanation-markdown em {
-          color: #a21caf;
-        }
-        .explanation-markdown code {
-          background: #f3f4f6;
-          color: #7c3aed;
-          border-radius: 0.3em;
-          padding: 0.1em 0.3em;
-          font-size: 0.95em;
-        }
-        .explanation-markdown blockquote {
-          border-left: 3px solid #a5b4fc;
-          margin: 0 0 1em 0;
-          padding: 0.5em 1em;
-          color: #6366f1;
-          background: #f8fafc;
-          border-radius: 0.5em;
         }
 
         /* Скрываем скроллбара */

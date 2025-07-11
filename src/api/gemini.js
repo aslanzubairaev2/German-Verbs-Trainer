@@ -611,3 +611,93 @@ export async function generateSimilarPhrase({ basePhrase, setter }) {
     });
   }
 }
+
+/**
+ * Получить ответ от Gemini в режиме чата
+ * @param {string} message - сообщение пользователя
+ * @param {array} conversationHistory - история сообщений
+ * @returns {string} ответ от Gemini
+ */
+export async function fetchGeminiChat({ message, conversationHistory = [] }) {
+  const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("API ключ не настроен в .env");
+  }
+
+  // Формируем контекст из истории сообщений
+  let context = "";
+  if (conversationHistory.length > 0) {
+    context = "Контекст предыдущих сообщений:\n";
+    conversationHistory.forEach((msg, index) => {
+      if (msg.type === "user") {
+        context += `Пользователь: ${msg.content}\n`;
+      } else {
+        context += `Gemini: ${msg.content}\n`;
+      }
+    });
+    context += "\n";
+  }
+
+  const prompt = `
+    ${context}
+    Ты опытный преподаватель немецкого языка, специализирующийся на методе Петрова.
+    Ты помогаешь студенту изучать немецкий язык на уровне A1 (второй урок Петрова).
+    
+    ОТВЕТЬ НА ВОПРОС ПОЛЬЗОВАТЕЛЯ: "${message}"
+    
+    ПРАВИЛА ОТВЕТА:
+    - Отвечай кратко и понятно
+    - Используй простой язык
+    - Если вопрос касается грамматики - объясни на примерах
+    - Если нужно перевести - дай перевод с объяснением
+    - Если вопрос не по немецкому - вежливо перенаправь к теме изучения языка
+    - Максимум 2-3 предложения в ответе
+    - ВСЕГДА заключай немецкие фразы в кавычки: "Ich gehe zur Schule"
+    - ВСЕГДА заключай отдельные немецкие слова в кавычки: "gehen", "Schule"
+    - Используй Markdown для форматирования:
+      * **жирный текст** для важных терминов
+      * *курсив* для примеров
+      * \`код\` для немецких слов
+      * - списки для перечислений
+      * > цитаты для важных правил
+    
+    ПРИМЕРЫ ПРАВИЛЬНОГО ОТВЕТА:
+    - Глагол "gehen" означает "идти". Например: "Ich gehe" (Я иду)
+    - В немецком языке "Haus" означает "дом". Фраза "Ich wohne im Haus" переводится как "Я живу в доме"
+    
+    Отвечай только на русском языке, если не просят иначе.
+  `;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash-latest",
+      contents: prompt,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 300,
+      },
+    });
+
+    const rawText = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error("Пустой ответ от Gemini");
+    }
+
+    return rawText.trim();
+  } catch (error) {
+    console.error("Fetch Gemini Chat Error:", error);
+    let userMessage = "Не удалось получить ответ от Gemini.";
+    const errStr = (error?.message || "") + JSON.stringify(error);
+    if (
+      errStr.includes("overloaded") ||
+      errStr.includes("UNAVAILABLE") ||
+      errStr.includes("503") ||
+      errStr.includes("model is overloaded")
+    ) {
+      userMessage =
+        "К сожалению, сервер перегружен, мы уже работаем над решением. Попробуйте, пожалуйста, позже.";
+    }
+    throw new Error(userMessage);
+  }
+}
