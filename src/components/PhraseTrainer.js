@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
 import GeminiChatModal from "./GeminiChatModal";
@@ -30,6 +31,12 @@ function PhraseTrainer({ onBackToMain }) {
   const [currentPhraseId, setCurrentPhraseId] = useState(null);
   const [quotedPhrases, setQuotedPhrases] = useState([]);
   const cardRef = useRef(null);
+
+  // Состояния для модалки перевода русского слова
+  const [ruWordInfoCache, setRuWordInfoCache] = useState({});
+  const [selectedRuWord, setSelectedRuWord] = useState(null);
+  const [showRuWordInfo, setShowRuWordInfo] = useState(false);
+  const [ruWordInfo, setRuWordInfo] = useState(null);
 
   // Функция озвучивания
   const speak = useCallback((text, lang = "de-DE") => {
@@ -487,7 +494,99 @@ function PhraseTrainer({ onBackToMain }) {
                   lineHeight: 1.4,
                 }}
               >
-                {phrase.russian}
+                {phrase.russian.split(/\s+/).map((word, idx) => {
+                  const cleanWord = word.replace(/[.,!?;:]/g, "");
+                  const punctuation = word.replace(/[^.,!?;:]/g, "");
+                  return (
+                    <span key={idx}>
+                      <span
+                        style={{
+                          cursor: "pointer",
+                          background:
+                            selectedRuWord && selectedRuWord.id === idx
+                              ? "#f1f5f9"
+                              : "none",
+                          color:
+                            selectedRuWord && selectedRuWord.id === idx
+                              ? "#2563eb"
+                              : "white",
+                          borderRadius: "0.2rem",
+                          padding: "0.1rem 0.2rem",
+                          fontWeight:
+                            selectedRuWord && selectedRuWord.id === idx
+                              ? 700
+                              : 600,
+                          transition: "all 0.2s",
+                        }}
+                        title={`Кликните для перевода слова "${cleanWord}"`}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setSelectedRuWord({ word: cleanWord, id: idx });
+                          setShowRuWordInfo(true);
+                          // Проверяем кеш
+                          if (ruWordInfoCache[cleanWord]) {
+                            setRuWordInfo({
+                              loading: false,
+                              data: ruWordInfoCache[cleanWord],
+                              error: null,
+                            });
+                            return;
+                          }
+                          setRuWordInfo({
+                            loading: true,
+                            data: null,
+                            error: null,
+                          });
+                          try {
+                            const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+                            if (!apiKey)
+                              throw new Error("API ключ не настроен");
+                            const prompt = `\nДай краткую справку о русском слове "${cleanWord}" для изучающих немецкий язык (уровень A1-A2).\n\nФормат ответа в Markdown:\n\n## ${cleanWord}\n\n**Перевод на немецкий:** [перевод]\n\n**Часть речи:** [существительное/глагол/местоимение/прилагательное/наречие/предлог]\n\n**Примеры:**\n- [пример использования в немецком]\n- [ещё один пример]\n\n**Примечание:** [дополнительная информация, если нужно]\n\nОтвечай кратко и понятно, используй простой язык.`;
+                            const response = await fetch(
+                              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  contents: [
+                                    { role: "user", parts: [{ text: prompt }] },
+                                  ],
+                                  generationConfig: {
+                                    temperature: 0.3,
+                                    maxOutputTokens: 300,
+                                  },
+                                }),
+                              }
+                            );
+                            if (!response.ok) throw new Error("Ошибка API");
+                            const result = await response.json();
+                            const text =
+                              result.candidates[0].content.parts[0].text;
+                            setRuWordInfoCache((prev) => ({
+                              ...prev,
+                              [cleanWord]: text,
+                            }));
+                            setRuWordInfo({
+                              loading: false,
+                              data: text,
+                              error: null,
+                            });
+                          } catch (error) {
+                            setRuWordInfo({
+                              loading: false,
+                              data: null,
+                              error: "Не удалось получить перевод",
+                            });
+                          }
+                        }}
+                      >
+                        {cleanWord}
+                      </span>
+                      {punctuation}
+                      {idx < phrase.russian.split(/\s+/).length - 1 && " "}
+                    </span>
+                  );
+                })}
               </div>
               <div
                 style={{
@@ -809,6 +908,125 @@ function PhraseTrainer({ onBackToMain }) {
         onClose={closeChatModal}
         phraseId={currentPhraseId}
       />
+
+      {/* Модалка для перевода слова */}
+      {showRuWordInfo && selectedRuWord && (
+        <div className="word-info-modal">
+          <div className="word-info-content">
+            <div className="word-info-header">
+              <h3>
+                Перевод слова: <strong>{selectedRuWord.word}</strong>
+              </h3>
+              <button
+                onClick={() => setShowRuWordInfo(false)}
+                className="close-btn"
+              >
+                ×
+              </button>
+            </div>
+            <div className="word-info-body">
+              {ruWordInfo?.loading && (
+                <div className="word-info-loading">
+                  <div className="loading-spinner"></div>
+                  <span>Загружаем перевод...</span>
+                </div>
+              )}
+              {ruWordInfo?.error && (
+                <div className="word-info-error">{ruWordInfo.error}</div>
+              )}
+              {ruWordInfo?.data && (
+                <div className="word-info-markdown">
+                  <ReactMarkdown>{ruWordInfo.data}</ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
+          <style>{`
+            .word-info-modal {
+              position: fixed;
+              top: 0;
+              left: 0;
+              right: 0;
+              bottom: 0;
+              background: rgba(0, 0, 0, 0.5);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 2000;
+            }
+            .word-info-content {
+              background: white;
+              border-radius: 0.8rem;
+              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+              max-width: 500px;
+              width: 90%;
+              max-height: 80vh;
+              overflow: hidden;
+            }
+            .word-info-header {
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 1rem 1.5rem;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            .word-info-header h3 {
+              margin: 0;
+              font-size: 1.1rem;
+              color: #1e293b;
+            }
+            .close-btn {
+              background: none;
+              border: none;
+              color: #64748b;
+              cursor: pointer;
+              padding: 0.3rem;
+              border-radius: 0.3rem;
+              font-size: 1.3rem;
+              transition: all 0.2s;
+            }
+            .close-btn:hover {
+              background-color: #f1f5f9;
+              color: #475569;
+            }
+            .word-info-body {
+              padding: 1.5rem;
+              max-height: 60vh;
+              overflow-y: auto;
+            }
+            .word-info-loading {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+              color: #64748b;
+            }
+            .loading-spinner {
+              width: 1rem;
+              height: 1rem;
+              border: 2px solid #e2e8f0;
+              border-top: 2px solid #2563eb;
+              border-radius: 50%;
+              animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            .word-info-error {
+              color: #dc2626;
+              padding: 1rem;
+              background: #fef2f2;
+              border-radius: 0.5rem;
+              border: 1px solid #fecaca;
+            }
+            .word-info-markdown {
+              line-height: 1.6;
+              font-size: 1rem;
+              color: #1e293b;
+            }
+          `}</style>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin {

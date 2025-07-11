@@ -7,6 +7,8 @@ import { Volume2, X } from "lucide-react";
  * Поддерживает только кликабельность слов для справки
  */
 function CardPhrase({ phrase, speak, isSpeaking }) {
+  // Кеш для справок по словам: { слово: справка }
+  const [wordInfoCache, setWordInfoCache] = useState({});
   const [selectedWord, setSelectedWord] = useState(null);
   const [showWordInfo, setShowWordInfo] = useState(false);
   const [wordInfo, setWordInfo] = useState(null);
@@ -33,7 +35,16 @@ function CardPhrase({ phrase, speak, isSpeaking }) {
     setSelectedWord(wordData);
     setShowWordInfo(true);
 
-    // Получаем информацию о слове
+    // Проверяем кеш: если справка уже есть, показываем её сразу
+    if (wordInfoCache[wordData.word]) {
+      setWordInfo({
+        loading: false,
+        data: wordInfoCache[wordData.word],
+        error: null,
+      });
+      return;
+    }
+    // Если нет — делаем запрос
     fetchWordInfo(wordData.word);
   };
 
@@ -91,6 +102,8 @@ function CardPhrase({ phrase, speak, isSpeaking }) {
       const result = await response.json();
       const text = result.candidates[0].content.parts[0].text;
 
+      // Сохраняем справку в кеш
+      setWordInfoCache((prev) => ({ ...prev, [word]: text }));
       setWordInfo({ loading: false, data: text, error: null });
     } catch (error) {
       console.error("Error fetching word info:", error);
@@ -121,7 +134,11 @@ function CardPhrase({ phrase, speak, isSpeaking }) {
         {words.map((wordData, index) => (
           <span key={wordData.id}>
             <span
-              className="card-interactive-word"
+              className={`card-interactive-word${
+                selectedWord && selectedWord.id === wordData.id
+                  ? " selected"
+                  : ""
+              }`}
               onClick={(e) => handleWordClick(e, wordData)}
               title={`Кликните для справки о слове "${wordData.word}"`}
             >
@@ -238,7 +255,15 @@ function CardPhrase({ phrase, speak, isSpeaking }) {
           text-decoration: underline;
         }
 
+        .card-interactive-word.selected {
+          background-color: #f1f5f9;
+          color: #2563eb;
+          font-weight: 700;
+          box-shadow: 0 0 0 2px #2563eb33;
+        }
+
         .word-info-modal {
+          /* Затемнение + flex-центрирование модального окна */
           position: fixed;
           top: 0;
           left: 0;
@@ -251,6 +276,9 @@ function CardPhrase({ phrase, speak, isSpeaking }) {
           z-index: 2000;
         }
         .word-info-content {
+        position: fixed;
+        // top: calc(50% - 200px);
+          /* Обычный блочный элемент, центрируется flex-контейнером */
           background: white;
           border-radius: 0.8rem;
           box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
