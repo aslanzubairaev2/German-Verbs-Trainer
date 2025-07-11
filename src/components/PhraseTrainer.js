@@ -232,6 +232,24 @@ function PhraseTrainer({ onBackToMain }) {
     setShowChatModal(false);
   };
 
+  // Функция с повтором запроса (retry)
+  async function fetchWithRetry(url, options, maxRetries = 3, delayMs = 500) {
+    let lastError;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error("Ошибка API");
+        return response;
+      } catch (err) {
+        lastError = err;
+        if (attempt < maxRetries) {
+          await new Promise((res) => setTimeout(res, delayMs));
+        }
+      }
+    }
+    throw lastError;
+  }
+
   return (
     <div
       style={{
@@ -542,23 +560,26 @@ function PhraseTrainer({ onBackToMain }) {
                             if (!apiKey)
                               throw new Error("API ключ не настроен");
                             const prompt = `\nДай краткую справку о русском слове "${cleanWord}" для изучающих немецкий язык (уровень A1-A2).\n\nФормат ответа в Markdown:\n\n## ${cleanWord}\n\n**Перевод на немецкий:** [перевод]\n\n**Часть речи:** [существительное/глагол/местоимение/прилагательное/наречие/предлог]\n\n**Примеры:**\n- [пример использования в немецком]\n- [ещё один пример]\n\n**Примечание:** [дополнительная информация, если нужно]\n\nОтвечай кратко и понятно, используй простой язык.`;
-                            const response = await fetch(
-                              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  contents: [
-                                    { role: "user", parts: [{ text: prompt }] },
-                                  ],
-                                  generationConfig: {
-                                    temperature: 0.3,
-                                    maxOutputTokens: 300,
-                                  },
-                                }),
-                              }
+                            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                            const options = {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                contents: [
+                                  { role: "user", parts: [{ text: prompt }] },
+                                ],
+                                generationConfig: {
+                                  temperature: 0.3,
+                                  maxOutputTokens: 300,
+                                },
+                              }),
+                            };
+                            const response = await fetchWithRetry(
+                              url,
+                              options,
+                              3,
+                              500
                             );
-                            if (!response.ok) throw new Error("Ошибка API");
                             const result = await response.json();
                             const text =
                               result.candidates[0].content.parts[0].text;
