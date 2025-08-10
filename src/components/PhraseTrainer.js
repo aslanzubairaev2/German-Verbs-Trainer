@@ -14,7 +14,7 @@ import CardPhrase from "./CardPhrase";
 import {
   Sparkles,
   Volume2,
-  RotateCcw,
+
   ChevronLeft,
   HelpCircle,
   X,
@@ -1225,8 +1225,9 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                         // Проверяем, является ли текущий text именно найденным инфинитивом
                         const isActualInfinitive = foundInfinitive && text.toLowerCase() === foundInfinitive.toLowerCase();
                         
-                        // Также проверяем, является ли само слово потенциальным инфинитивом
-                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
+                        
+                        // Также проверяем, является ли само слово потенциальным инфинитивом (для логов)
+                        const isPotentialInfinitiveForLog = extractInfinitive(text) === text.toLowerCase();
                         
                         // Отладочная информация
                         if (text && text.length > 2) {
@@ -1234,7 +1235,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                             text,
                             foundInfinitive,
                             isActualInfinitive,
-                            isPotentialInfinitive,
+                            isPotentialInfinitive: isPotentialInfinitiveForLog,
                             extractedInfinitive: extractInfinitive(text),
                             fullMarkdownSnippet: fullMarkdown.substring(fullMarkdown.indexOf('Инфинитив') - 20, fullMarkdown.indexOf('Инфинитив') + 100)
                           });
@@ -1495,8 +1496,9 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                         // Проверяем, является ли текущий text именно найденным инфинитивом
                         const isActualInfinitive = foundInfinitive && text.toLowerCase() === foundInfinitive.toLowerCase();
                         
-                        // Также проверяем, является ли само слово потенциальным инфинитивом
-                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
+                        
+                        // Также проверяем, является ли само слово потенциальным инфинитивом (для логов)
+                        const isPotentialInfinitiveForLog2 = extractInfinitive(text) === text.toLowerCase();
                         
                         // Отладочная информация
                         if (text && text.length > 2) {
@@ -1504,7 +1506,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                             text,
                             foundInfinitive,
                             isActualInfinitive,
-                            isPotentialInfinitive,
+                            isPotentialInfinitive: isPotentialInfinitiveForLog2,
                             extractedInfinitive: extractInfinitive(text)
                           });
                         }
