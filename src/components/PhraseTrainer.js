@@ -1215,18 +1215,26 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
                         
-                        // Проверяем, содержит ли строка инфинитив
-                        // Ищем паттерн "Инфинитив (нем.):" или похожие
-                        const parent = props.node?.parent;
-                        const parentText = parent?.children?.map(child => 
-                          child.type === 'text' ? child.value : 
-                          child.children?.map(c => c.value || '').join('') || ''
-                        ).join('') || '';
+                        // Проверяем контекст инфинитива более надежным способом
+                        const fullMarkdown = ruWordInfo?.data || '';
+                        const isInfinitiveContext = /Инфинитив\s*\(нем\.\)\s*:.*?\*\*[^*]*\*\*/i.test(fullMarkdown) && 
+                                                   fullMarkdown.includes(text);
                         
-                        const isInfinitiveContext = parentText.includes('инфинитив') || 
-                                                   parentText.includes('Инфинитив');
+                        // Также проверяем, является ли само слово инфинитивом
+                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
                         
-                        if (isInfinitiveContext && onNavigateToVerb) {
+                        // Отладочная информация
+                        if (text && text.length > 2) {
+                          console.log('PhraseTrainer Debug - RU Modal:', {
+                            text,
+                            fullMarkdown: fullMarkdown.substring(0, 200) + '...',
+                            isInfinitiveContext,
+                            isPotentialInfinitive,
+                            extractedInfinitive: extractInfinitive(text)
+                          });
+                        }
+                        
+                        if ((isInfinitiveContext || isPotentialInfinitive) && onNavigateToVerb) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
@@ -1457,18 +1465,26 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
                         
-                        // Проверяем, содержит ли строка инфинитив
-                        // Ищем паттерн "Инфинитив (нем.):" или похожие
-                        const parent = props.node?.parent;
-                        const parentText = parent?.children?.map(child => 
-                          child.type === 'text' ? child.value : 
-                          child.children?.map(c => c.value || '').join('') || ''
-                        ).join('') || '';
+                        // Проверяем контекст инфинитива более надежным способом
+                        const fullMarkdown = deWordInfo?.data || '';
+                        const isInfinitiveContext = /Инфинитив\s*\(нем\.\)\s*:.*?\*\*[^*]*\*\*/i.test(fullMarkdown) && 
+                                                   fullMarkdown.includes(text);
                         
-                        const isInfinitiveContext = parentText.includes('инфинитив') || 
-                                                   parentText.includes('Инфинитив');
+                        // Также проверяем, является ли само слово инфинитивом
+                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
                         
-                        if (isInfinitiveContext && onNavigateToVerb) {
+                        // Отладочная информация
+                        if (text && text.length > 2) {
+                          console.log('PhraseTrainer Debug - DE Modal:', {
+                            text,
+                            fullMarkdown: fullMarkdown.substring(0, 200) + '...',
+                            isInfinitiveContext,
+                            isPotentialInfinitive,
+                            extractedInfinitive: extractInfinitive(text)
+                          });
+                        }
+                        
+                        if ((isInfinitiveContext || isPotentialInfinitive) && onNavigateToVerb) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
