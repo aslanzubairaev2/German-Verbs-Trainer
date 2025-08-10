@@ -1215,26 +1215,32 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
                         
-                        // Проверяем контекст инфинитива более надежным способом
+                        // Проверяем, является ли это инфинитивом более точно
                         const fullMarkdown = ruWordInfo?.data || '';
-                        const isInfinitiveContext = /Инфинитив\s*\(нем\.\)\s*:.*?\*\*[^*]*\*\*/i.test(fullMarkdown) && 
-                                                   fullMarkdown.includes(text);
                         
-                        // Также проверяем, является ли само слово инфинитивом
+                        // Ищем инфинитив в строке типа "**Инфинитив (нем.):** denken"
+                        const infinitiveMatch = fullMarkdown.match(/\*\*Инфинитив\s*\(нем\.\)\s*:\*\*\s*([a-zA-ZäöüÄÖÜß]+)/i);
+                        const foundInfinitive = infinitiveMatch ? infinitiveMatch[1] : null;
+                        
+                        // Проверяем, является ли текущий text именно найденным инфинитивом
+                        const isActualInfinitive = foundInfinitive && text.toLowerCase() === foundInfinitive.toLowerCase();
+                        
+                        // Также проверяем, является ли само слово потенциальным инфинитивом
                         const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
                         
                         // Отладочная информация
                         if (text && text.length > 2) {
                           console.log('PhraseTrainer Debug - RU Modal:', {
                             text,
-                            fullMarkdown: fullMarkdown.substring(0, 200) + '...',
-                            isInfinitiveContext,
+                            foundInfinitive,
+                            isActualInfinitive,
                             isPotentialInfinitive,
-                            extractedInfinitive: extractInfinitive(text)
+                            extractedInfinitive: extractInfinitive(text),
+                            fullMarkdownSnippet: fullMarkdown.substring(fullMarkdown.indexOf('Инфинитив') - 20, fullMarkdown.indexOf('Инфинитив') + 100)
                           });
                         }
                         
-                        if (onNavigateToVerb && text && text.length > 2) { // ВРЕМЕННО: все strong кликабельны
+                        if (onNavigateToVerb && (isActualInfinitive || isPotentialInfinitive)) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
@@ -1465,26 +1471,31 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
                         
-                        // Проверяем контекст инфинитива более надежным способом
+                        // Проверяем, является ли это инфинитивом более точно
                         const fullMarkdown = deWordInfo?.data || '';
-                        const isInfinitiveContext = /Инфинитив\s*\(нем\.\)\s*:.*?\*\*[^*]*\*\*/i.test(fullMarkdown) && 
-                                                   fullMarkdown.includes(text);
                         
-                        // Также проверяем, является ли само слово инфинитивом
+                        // Ищем инфинитив в строке типа "**Инфинитив (нем.):** denken"
+                        const infinitiveMatch = fullMarkdown.match(/\*\*Инфинитив\s*\(нем\.\)\s*:\*\*\s*([a-zA-ZäöüÄÖÜß]+)/i);
+                        const foundInfinitive = infinitiveMatch ? infinitiveMatch[1] : null;
+                        
+                        // Проверяем, является ли текущий text именно найденным инфинитивом
+                        const isActualInfinitive = foundInfinitive && text.toLowerCase() === foundInfinitive.toLowerCase();
+                        
+                        // Также проверяем, является ли само слово потенциальным инфинитивом
                         const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
                         
                         // Отладочная информация
                         if (text && text.length > 2) {
                           console.log('PhraseTrainer Debug - DE Modal:', {
                             text,
-                            fullMarkdown: fullMarkdown.substring(0, 200) + '...',
-                            isInfinitiveContext,
+                            foundInfinitive,
+                            isActualInfinitive,
                             isPotentialInfinitive,
                             extractedInfinitive: extractInfinitive(text)
                           });
                         }
                         
-                        if (onNavigateToVerb && text && text.length > 2) { // ВРЕМЕННО: все strong кликабельны
+                        if (onNavigateToVerb && (isActualInfinitive || isPotentialInfinitive)) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
