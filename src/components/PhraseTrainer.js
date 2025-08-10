@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
+import { generateCurriculumPhrase } from "../api/gemini";
+import { getNextTask, submitResult } from "../curriculum/engine";
 import GeminiChatModal from "./GeminiChatModal";
 import InteractivePhrase from "./InteractivePhrase";
 import CardPhrase from "./CardPhrase";
@@ -16,7 +18,7 @@ import {
 /**
  * Компонент для тренировки немецких фраз из локального файла
  */
-function PhraseTrainer({ onBackToMain }) {
+function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
   const [loading, setLoading] = useState(false);
   const [phrase, setPhrase] = useState(null);
   const [error, setError] = useState(null);
@@ -38,6 +40,9 @@ function PhraseTrainer({ onBackToMain }) {
   const [showRuWordInfo, setShowRuWordInfo] = useState(false);
   const [ruWordInfo, setRuWordInfo] = useState(null);
 
+  // Состояние для режима обучения
+  const [curriculumTask, setCurriculumTask] = useState(null);
+
   // Функция озвучивания
   const speak = useCallback((text, lang = "de-DE") => {
     if (!("speechSynthesis" in window)) return;
@@ -52,37 +57,62 @@ function PhraseTrainer({ onBackToMain }) {
     window.speechSynthesis.speak(utterance);
   }, []);
 
-  // Получение фразы из локального файла
+  // Получение фразы
   const fetchPhrase = async () => {
     setLoading(true);
     setPhrase(null);
     setError(null);
-    setIsFlipped(false); // Сбрасываем переворот при новой фразе
+    setIsFlipped(false);
 
-    // Сбрасываем состояние чата при смене фразы
     setCurrentPhraseId(null);
     setShowChatModal(false);
 
-    const filterType = selectedType === "all" ? null : selectedType;
-
-    await fetchLocalPhrase({
-      setter: ({ loading, data, error }) => {
-        setLoading(!!loading);
+    try {
+      if (curriculumMode) {
+        const task = getNextTask();
+        setCurriculumTask(task);
+        const data = await generateCurriculumPhrase({
+          level: task.level,
+          topic: task.topic,
+        });
         setPhrase(data);
-        setError(error);
-        // Устанавливаем ID новой фразы
-        if (data) {
-          setCurrentPhraseId(`${data.german}-${data.russian}`);
-        }
-      },
-      filterType,
-    });
+        setError(null);
+        setCurrentPhraseId(`${data.german}-${data.russian}`);
+      } else {
+        const filterType = selectedType === "all" ? null : selectedType;
+        await fetchLocalPhrase({
+          setter: ({ loading, data, error }) => {
+            setLoading(!!loading);
+            setPhrase(data);
+            setError(error);
+            if (data) setCurrentPhraseId(`${data.german}-${data.russian}`);
+          },
+          filterType,
+        });
+        return;
+      }
+    } catch (e) {
+      setError("Не удалось получить фразу");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Автоматическая загрузка фразы при монтировании компонента
   useEffect(() => {
     fetchPhrase();
   }, []); // Пустой массив зависимостей - выполняется только при монтировании
+
+  // После переворота карточки считаем, что пользователь увидел правильный ответ — для демо зафиксируем результат как верный
+  useEffect(() => {
+    if (!curriculumMode) return;
+    if (!isFlipped || !curriculumTask) return;
+    // В реальном режиме подменим на реальную проверку; пока — фиксируем успех
+    submitResult(
+      { taskId: Date.now(), topic: curriculumTask.topic },
+      { isCorrect: true }
+    );
+  }, [isFlipped, curriculumMode, curriculumTask]);
 
   // Генерация похожей фразы через Gemini
   const generateSimilar = async () => {

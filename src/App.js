@@ -99,6 +99,7 @@ function GermanVerbsApp() {
   const [errors, setErrors] = useState(0);
   const [total, setTotal] = useState(0);
   const [showPhraseTrainer, setShowPhraseTrainer] = useState(false);
+  const [curriculumMode, setCurriculumMode] = useState(false);
 
   // Voice select verb
   const [listening, setListening] = useState(false);
@@ -168,11 +169,7 @@ function GermanVerbsApp() {
   }
 
   // Curriculum mode trigger (каркас)
-  const [curriculumMode, setCurriculumMode] = useState(false);
-  function startCurriculum() {
-    setCurriculumMode(true);
-    setAudioReady(true);
-  }
+  // state curriculumMode уже объявлен выше; лишний блок удалён
 
   // --- DERIVED STATE & MEMOS ---
   const availableVerbsForProgression = useMemo(
@@ -452,13 +449,24 @@ function GermanVerbsApp() {
   if (!audioReady) {
     // Показываем стартовый экран или PhraseTrainer
     if (showPhraseTrainer) {
-      return <PhraseTrainer onBackToMain={() => setShowPhraseTrainer(false)} />;
+      return (
+        <PhraseTrainer
+          onBackToMain={() => setShowPhraseTrainer(false)}
+          curriculumMode={curriculumMode}
+        />
+      );
     }
     return (
       <StartScreen
         onStart={() => setAudioReady(true)}
-        onStartPhrases={() => setShowPhraseTrainer(true)}
-        onStartCurriculum={startCurriculum}
+        onStartPhrases={() => {
+          setCurriculumMode(false);
+          setShowPhraseTrainer(true);
+        }}
+        onStartCurriculum={() => {
+          setCurriculumMode(true);
+          setShowPhraseTrainer(true);
+        }}
       />
     );
   }
