@@ -1240,7 +1240,21 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                           });
                         }
                         
-                        if (onNavigateToVerb && (isActualInfinitive || isPotentialInfinitive)) {
+                        // Проверяем, является ли слово инфинитивом
+                        // 1. Ищем инфинитив после "Инфинитив (нем.):"
+                        const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
+                        const afterMatch = fullMarkdown.match(afterInfinitivePattern);
+                        const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        // 2. Проверяем, является ли это потенциальным инфинитивом
+                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
+                        
+                        // 3. Определяем, должно ли слово быть кликабельным
+                        const shouldBeClickable = 
+                          (infinitiveAfterColon && text.toLowerCase() === infinitiveAfterColon.toLowerCase()) ||
+                          isPotentialInfinitive;
+                        
+                        if (onNavigateToVerb && shouldBeClickable) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
@@ -1495,7 +1509,21 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                           });
                         }
                         
-                        if (onNavigateToVerb && (isActualInfinitive || isPotentialInfinitive)) {
+                        // Проверяем, является ли слово инфинитивом
+                        // 1. Ищем инфинитив после "Инфинитив (нем.):"
+                        const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
+                        const afterMatch = fullMarkdown.match(afterInfinitivePattern);
+                        const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        // 2. Проверяем, является ли это потенциальным инфинитивом
+                        const isPotentialInfinitive = extractInfinitive(text) === text.toLowerCase();
+                        
+                        // 3. Определяем, должно ли слово быть кликабельным
+                        const shouldBeClickable = 
+                          (infinitiveAfterColon && text.toLowerCase() === infinitiveAfterColon.toLowerCase()) ||
+                          isPotentialInfinitive;
+                        
+                        if (onNavigateToVerb && shouldBeClickable) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
