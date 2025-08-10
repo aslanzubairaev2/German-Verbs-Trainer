@@ -3,6 +3,7 @@ import { Lightbulb, Check, Volume2 } from "lucide-react";
 import PracticeCompletionModal from "./PracticeCompletionModal";
 import PracticeExamplesModal from "./PracticeExamplesModal";
 import { fetchContextExamples } from "../api/gemini";
+import { pronouns } from "../constants";
 
 /**
  * PracticeBox — современный минималистичный режим практики.
@@ -23,14 +24,7 @@ function PracticeBox({
   ...rest
 }) {
   // --- Константы ---
-  const pronouns = [
-    { german: "ich", russian: "я" },
-    { german: "du", russian: "ты" },
-    { german: "er/sie/es", russian: "он/она/оно" },
-    { german: "wir", russian: "мы" },
-    { german: "ihr", russian: "вы (мн.)" },
-    { german: "sie/Sie", russian: "они/Вы" },
-  ];
+  // список местоимений теперь берём из общих констант
 
   // --- Состояния ---
   const [currentPronoun, setCurrentPronoun] = useState(0);
