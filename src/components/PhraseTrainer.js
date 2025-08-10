@@ -3,7 +3,11 @@ import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
 import { generateCurriculumPhrase } from "../api/gemini";
-import { getNextTask, submitResult } from "../curriculum/engine";
+import {
+  getNextTask,
+  submitResult,
+  registerGeneratedPhrase,
+} from "../curriculum/engine";
 import GeminiChatModal from "./GeminiChatModal";
 import InteractivePhrase from "./InteractivePhrase";
 import CardPhrase from "./CardPhrase";
@@ -13,6 +17,7 @@ import {
   RotateCcw,
   ChevronLeft,
   HelpCircle,
+  X,
 } from "lucide-react";
 
 /**
@@ -39,6 +44,12 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
   const [selectedRuWord, setSelectedRuWord] = useState(null);
   const [showRuWordInfo, setShowRuWordInfo] = useState(false);
   const [ruWordInfo, setRuWordInfo] = useState(null);
+
+  // Состояния для модалки немецкого слова
+  const [deWordInfoCache, setDeWordInfoCache] = useState({});
+  const [selectedDeWord, setSelectedDeWord] = useState(null);
+  const [showDeWordInfo, setShowDeWordInfo] = useState(false);
+  const [deWordInfo, setDeWordInfo] = useState(null);
 
   // Состояние для режима обучения
   const [curriculumTask, setCurriculumTask] = useState(null);
@@ -74,10 +85,13 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
         const data = await generateCurriculumPhrase({
           level: task.level,
           topic: task.topic,
+          constraints: task.constraints,
         });
         setPhrase(data);
         setError(null);
         setCurrentPhraseId(`${data.german}-${data.russian}`);
+        // Регистрация для анти-повторов
+        if (data?.german) registerGeneratedPhrase(data.german);
       } else {
         const filterType = selectedType === "all" ? null : selectedType;
         await fetchLocalPhrase({
@@ -103,16 +117,20 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
     fetchPhrase();
   }, []); // Пустой массив зависимостей - выполняется только при монтировании
 
-  // После переворота карточки считаем, что пользователь увидел правильный ответ — для демо зафиксируем результат как верный
-  useEffect(() => {
-    if (!curriculumMode) return;
-    if (!isFlipped || !curriculumTask) return;
-    // В реальном режиме подменим на реальную проверку; пока — фиксируем успех
+  // Обработка успех/повтор для режима программы
+  const handleCurriculumRight = () => {
+    if (!curriculumMode || !curriculumTask) return;
     submitResult(
       { taskId: Date.now(), topic: curriculumTask.topic },
       { isCorrect: true }
     );
-  }, [isFlipped, curriculumMode, curriculumTask]);
+    fetchPhrase();
+  };
+  const handleCurriculumWrong = () => {
+    if (!curriculumMode || !curriculumTask) return;
+    // «Ещё пример» — без записи результата, просто новый пример
+    fetchPhrase();
+  };
 
   // Генерация похожей фразы через Gemini
   const generateSimilar = async () => {
@@ -206,7 +224,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
     const threshold = 100; // Минимальное расстояние для свайпа
 
     if (Math.abs(swipeOffset) > threshold) {
-      // Свайп выполнен - загружаем новую фразу
+      // В режиме программы свайп не влияет на прогресс — только «Понятно» кнопкой
       fetchPhrase();
     }
 
@@ -279,6 +297,117 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
     }
     throw lastError;
   }
+
+  // Обработчик клика по немецкому слову
+  const handleDeWordClick = (wordData) => {
+    setSelectedDeWord(wordData);
+    setShowDeWordInfo(true);
+
+    // Проверяем кеш: если справка уже есть, показываем её сразу
+    if (deWordInfoCache[wordData.word]) {
+      setDeWordInfo({
+        loading: false,
+        data: deWordInfoCache[wordData.word],
+        error: null,
+      });
+      return;
+    }
+    // Если нет — делаем запрос
+    fetchDeWordInfo(wordData.word);
+  };
+
+  // Получение информации о немецком слове через Gemini
+  const fetchDeWordInfo = async (word) => {
+    setDeWordInfo({ loading: true, data: null, error: null });
+
+    try {
+      const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("API ключ не настроен");
+      }
+
+      const prompt = `
+        Дай краткую справку о немецком слове "${word}" для изучающих язык (уровень A1-A2).
+        
+        ВАЖНО: 
+        - Если это глагол, покажи инфинитив на немецком языке
+        - Если это существительное, покажи форму с артиклем в единственном числе (der/die/das)
+        - Если это НЕ существительное, НЕ включай раздел "Форма с артиклем" вообще
+        
+        Формат ответа в Markdown:
+        
+        ## ${word}
+        
+        **Перевод:** [перевод на русский]
+        
+        **Часть речи:** [существительное/глагол/местоимение/прилагательное/наречие/предлог]
+        
+        **Инфинитив (нем.):** [инфинитив для глаголов]
+        
+        **Грамматика:** [краткое объяснение грамматических особенностей]
+        
+        **Примеры:**
+        - [немецкая фраза] ([русский перевод])
+        - [немецкая фраза] ([русский перевод])
+        - [немецкая фраза] ([русский перевод])
+        - [немецкая фраза] ([русский перевод])
+        
+        Отвечай кратко и понятно, используй простой язык.
+        
+        ПРИМЕЧАНИЕ: Раздел "Форма с артиклем" включай ТОЛЬКО для существительных.
+      `;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 300,
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Ошибка API");
+      }
+
+      const result = await response.json();
+      const text = result.candidates[0].content.parts[0].text;
+
+      // Сохраняем справку в кеш
+      setDeWordInfoCache((prev) => ({ ...prev, [word]: text }));
+      setDeWordInfo({ loading: false, data: text, error: null });
+    } catch (error) {
+      console.error("Error fetching word info:", error);
+      setDeWordInfo({
+        loading: false,
+        data: null,
+        error: "Не удалось получить информацию о слове",
+      });
+    }
+  };
+
+  // Извлечение немецкого слова для озвучки
+  const extractGermanHeadword = (md) => {
+    if (!md) return selectedDeWord?.word || "";
+    // Инфинитив (нем.): lieben
+    const infMatch =
+      md.match(/Инфинитив\s*\(нем\.\)\s*:\s*\*\*?([A-Za-zÄÖÜäöüß]+)\*?\*/i) ||
+      md.match(/Инфинитив\s*\(нем\.\)\s*:\s*([A-Za-zÄÖÜäöüß]+)/i);
+    if (infMatch && infMatch[1]) return infMatch[1];
+    // Форма с артиклем: der/die/das Wort
+    const artMatch = md.match(
+      /Форма с артиклем\s*:\s*(der|die|das)\s+([A-Za-zÄÖÜäöüß]+)/i
+    );
+    if (artMatch && artMatch[0]) return `${artMatch[1]} ${artMatch[2]}`;
+    // Возвращаем исходное слово
+    return selectedDeWord?.word || "";
+  };
 
   return (
     <div
@@ -589,7 +718,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
                             const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
                             if (!apiKey)
                               throw new Error("API ключ не настроен");
-                            const prompt = `\nДай краткую справку о русском слове "${cleanWord}" для изучающих немецкий язык (уровень A1-A2).\n\nФормат ответа в Markdown:\n\n## ${cleanWord}\n\n**Перевод на немецкий:** [перевод]\n\n**Часть речи:** [существительное/глагол/местоимение/прилагательное/наречие/предлог]\n\n**Примеры:**\n- [пример использования в немецком]\n- [ещё один пример]\n\n**Примечание:** [дополнительная информация, если нужно]\n\nОтвечай кратко и понятно, используй простой язык.`;
+                            const prompt = `\nТы лингвист A1-A2. Дай краткую, практичную справку о русском слове "${cleanWord}" с ориентацией на немецкий.\n\nТребования по части речи:\n- Если ЭТО СУЩЕСТВИТЕЛЬНОЕ: ОБЯЗАТЕЛЬНО укажи НОМИНАТИВ с артиклем (der/die/das) и форму множественного числа (если есть). Например: **der Apfel** (мн. **die Äpfel**).\n- Если ЭТО ГЛАГОЛ: ОБЯЗАТЕЛЬНО начни с инфинитива на немецком (напр. **lieben**), затем можно кратко упомянуть 3 л. ед. ч. (er/sie/es) в Präsens (напр. **liebt**) — но инфинитив на немецком должен быть первым.\n- Для других частей речи — просто краткая понятная справка.\n\nФормат ответа строго Markdown:\n\n## ${cleanWord}\n\n**Перевод на немецкий:** [перевод/близкие варианты]\n\n**Часть речи:** [существительное/глагол/прилагательное/наречие/и т.д.]\n\n[Если сущ.] **Форма с артиклем:** der/die/das + слово (и мн.ч., если есть)\n[Если глагол] **Инфинитив (нем.):** ...  (доп.: 3 л. ед. ч. Präsens — ...)\n\n**Примеры:**\n- [немецкая фраза] ([русский перевод])\n- [немецкая фраза] ([русский перевод])\n- [немецкая фраза] ([русский перевод])\n- [немецкая фраза] ([русский перевод])\n\n**Примечание:** [кратко, только важное]\n\nПиши кратко и дружелюбно. Не добавляй лишнего, соблюдай формат.`;
                             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
                             const options = {
                               method: "POST",
@@ -822,6 +951,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
                   phrase={phrase}
                   speak={speak}
                   isSpeaking={isSpeaking}
+                  onWordClick={handleDeWordClick}
                 />
               </div>
               <div
@@ -840,6 +970,41 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
           </div>
         </div>
       ) : null}
+
+      {/* Кнопки контроля прогресса — только в режиме программы */}
+      {curriculumMode && phrase && !loading && !generatingSimilar && (
+        <div
+          style={{
+            marginTop: "1rem",
+            display: "flex",
+            gap: "0.5rem",
+            justifyContent: "center",
+          }}
+        >
+          <button
+            onClick={handleCurriculumWrong}
+            style={{
+              padding: "0.5rem 0.9rem",
+              borderRadius: 8,
+              background: "#f1f5f9",
+              color: "#334155",
+            }}
+          >
+            Ещё пример
+          </button>
+          <button
+            onClick={handleCurriculumRight}
+            style={{
+              padding: "0.5rem 0.9rem",
+              borderRadius: 8,
+              background: "#10b981",
+              color: "#fff",
+            }}
+          >
+            Понятно
+          </button>
+        </div>
+      )}
 
       {/* Отображение ошибки */}
       {error && (
@@ -963,11 +1128,28 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
       {/* Модалка для перевода слова */}
       {showRuWordInfo && selectedRuWord && (
         <div className="word-info-modal">
-          <div className="word-info-content">
+          <div
+            className="word-info-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="word-info-header">
               <h3>
                 Перевод слова: <strong>{selectedRuWord.word}</strong>
               </h3>
+              {/* Кнопка озвучки немецкого заголовка, если извлекается */}
+              {ruWordInfo?.data && (
+                <button
+                  onClick={() => {
+                    const germanHead = extractGermanHeadword(ruWordInfo.data);
+                    if (germanHead) speak(germanHead, "de-DE");
+                  }}
+                  className="speak-btn-small"
+                  title="Озвучить слово по-немецки"
+                  style={{ marginRight: "auto", marginLeft: 8 }}
+                >
+                  🔊
+                </button>
+              )}
               <button
                 onClick={() => setShowRuWordInfo(false)}
                 className="close-btn"
@@ -987,95 +1169,337 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
               )}
               {ruWordInfo?.data && (
                 <div className="word-info-markdown">
-                  <ReactMarkdown>{ruWordInfo.data}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      li: ({ children, ...props }) => {
+                        const text = children?.toString() || "";
+
+                        // Сначала очищаем от лишних скобок в конце
+                        let cleanText = text.replace(/\)+$/, "");
+
+                        // Проверяем, не является ли весь текст в скобках
+                        if (
+                          cleanText.startsWith("(") &&
+                          cleanText.includes(")") &&
+                          !cleanText.includes("(")
+                        ) {
+                          // Ищем немецкую фразу внутри скобок
+                          const content = cleanText.substring(
+                            1,
+                            cleanText.lastIndexOf(")")
+                          );
+                          // Ищем где заканчивается немецкая фраза и начинается русский текст
+                          const germanEndMatch = content.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)\s+([А-Яа-я\s]+)/
+                          );
+                          if (germanEndMatch) {
+                            const germanText = germanEndMatch[1].trim();
+                            const russianText = germanEndMatch[2].trim();
+                            cleanText = `${germanText} (${russianText})`;
+                          }
+                        }
+
+                        // Ищем немецкую фразу: может быть с точкой или без, затем пробел и возможно скобка
+                        let germanMatch = cleanText.match(
+                          /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                        );
+
+                        // Если не нашли немецкую фразу в начале, ищем её после скобки
+                        if (!germanMatch && cleanText.startsWith("(")) {
+                          const afterBracket = cleanText.substring(1);
+                          germanMatch = afterBracket.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*\(/
+                          );
+                          if (germanMatch) {
+                            // Перестраиваем текст в правильном формате
+                            const germanText = germanMatch[1].trim();
+                            const restText = afterBracket.substring(
+                              germanMatch[0].length
+                            );
+                            cleanText = `${germanText} (${restText}`;
+                            germanMatch = cleanText.match(
+                              /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                            );
+                          }
+                        }
+
+                        // Если все еще не нашли, ищем немецкую фразу перед русским текстом
+                        if (!germanMatch) {
+                          // Ищем немецкую фразу, за которой сразу идет русский текст
+                          germanMatch = cleanText.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s+([А-Яа-я\s]+)/
+                          );
+                          if (germanMatch) {
+                            const germanText = germanMatch[1].trim();
+                            const russianText = germanMatch[2].trim();
+                            cleanText = `${germanText} (${russianText})`;
+                            germanMatch = cleanText.match(
+                              /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                            );
+                          }
+                        }
+
+                        if (germanMatch) {
+                          const germanText = germanMatch[1].trim();
+                          // Получаем текст после немецкой фразы
+                          const restText = cleanText
+                            .replace(germanMatch[0], "")
+                            .trim();
+
+                          // Очищаем от лишних скобок и форматируем
+                          let formattedText = restText;
+
+                          // Убираем лишние закрывающие скобки в конце
+                          formattedText = formattedText.replace(/\)+$/, "");
+
+                          // Если текст не начинается со скобки, добавляем её
+                          if (!formattedText.startsWith("(")) {
+                            formattedText = `(${formattedText})`;
+                          }
+
+                          return (
+                            <li
+                              {...props}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.3rem",
+                              }}
+                            >
+                              <button
+                                onClick={() =>
+                                  speak && speak(germanText, "de-DE")
+                                }
+                                disabled={isSpeaking}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#2563eb",
+                                  cursor: "pointer",
+                                  padding: "0.1rem",
+                                  borderRadius: "0.2rem",
+                                  fontSize: "0.9em",
+                                  flexShrink: 0,
+                                }}
+                                title="Озвучить пример"
+                              >
+                                🔊
+                              </button>
+                              <span>
+                                <span style={{ textDecoration: "underline" }}>
+                                  {germanText}
+                                </span>
+                                {" " + formattedText}
+                              </span>
+                            </li>
+                          );
+                        }
+                        return <li {...props}>{children}</li>;
+                      },
+                    }}
+                  >
+                    {ruWordInfo.data}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
           </div>
-          <style>{`
-            .word-info-modal {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              background: rgba(0, 0, 0, 0.5);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 2000;
-            }
-            .word-info-content {
-              background: white;
-              border-radius: 0.8rem;
-              box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-              max-width: 500px;
-              width: 90%;
-              max-height: 80vh;
-              overflow: hidden;
-            }
-            .word-info-header {
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              padding: 1rem 1.5rem;
-              border-bottom: 1px solid #e2e8f0;
-            }
-            .word-info-header h3 {
-              margin: 0;
-              font-size: 1.1rem;
-              color: #1e293b;
-            }
-            .close-btn {
-              background: none;
-              border: none;
-              color: #64748b;
-              cursor: pointer;
-              padding: 0.3rem;
-              border-radius: 0.3rem;
-              font-size: 1.3rem;
-              transition: all 0.2s;
-            }
-            .close-btn:hover {
-              background-color: #f1f5f9;
-              color: #475569;
-            }
-            .word-info-body {
-              padding: 1.5rem;
-              max-height: 60vh;
-              overflow-y: auto;
-            }
-            .word-info-loading {
-              display: flex;
-              align-items: center;
-              gap: 0.5rem;
-              color: #64748b;
-            }
-            .loading-spinner {
-              width: 1rem;
-              height: 1rem;
-              border: 2px solid #e2e8f0;
-              border-top: 2px solid #2563eb;
-              border-radius: 50%;
-              animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-            .word-info-error {
-              color: #dc2626;
-              padding: 1rem;
-              background: #fef2f2;
-              border-radius: 0.5rem;
-              border: 1px solid #fecaca;
-            }
-            .word-info-markdown {
-              line-height: 1.6;
-              font-size: 1rem;
-              color: #1e293b;
-            }
-          `}</style>
+        </div>
+      )}
+
+      {/* Модальное окно информации о немецком слове */}
+      {showDeWordInfo && selectedDeWord && (
+        <div className="word-info-modal">
+          <div
+            className="word-info-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="word-info-header">
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <h3>
+                  Справка о слове: <strong>{selectedDeWord.word}</strong>
+                </h3>
+                <button
+                  onClick={() =>
+                    speak &&
+                    speak(extractGermanHeadword(deWordInfo?.data), "de-DE")
+                  }
+                  disabled={isSpeaking}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    padding: "0.2rem",
+                    borderRadius: "0.3rem",
+                    transition: "all 0.2s",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  title="Озвучить слово"
+                >
+                  <Volume2 size={18} />
+                </button>
+              </div>
+              <button
+                onClick={() => setShowDeWordInfo(false)}
+                className="close-btn"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="word-info-body">
+              {deWordInfo?.loading && (
+                <div className="word-info-loading">
+                  <div className="loading-spinner"></div>
+                  <span>Загружаем информацию...</span>
+                </div>
+              )}
+
+              {deWordInfo?.error && (
+                <div className="word-info-error">{deWordInfo.error}</div>
+              )}
+
+              {deWordInfo?.data && (
+                <div className="word-info-markdown">
+                  <ReactMarkdown
+                    components={{
+                      li: ({ children, ...props }) => {
+                        const text = children?.toString() || "";
+
+                        // Сначала очищаем от лишних скобок в конце
+                        let cleanText = text.replace(/\)+$/, "");
+
+                        // Проверяем, не является ли весь текст в скобках
+                        if (
+                          cleanText.startsWith("(") &&
+                          cleanText.includes(")") &&
+                          !cleanText.includes("(")
+                        ) {
+                          // Ищем немецкую фразу внутри скобок
+                          const content = cleanText.substring(
+                            1,
+                            cleanText.lastIndexOf(")")
+                          );
+                          // Ищем где заканчивается немецкая фраза и начинается русский текст
+                          const germanEndMatch = content.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)\s+([А-Яа-я\s]+)/
+                          );
+                          if (germanEndMatch) {
+                            const germanText = germanEndMatch[1].trim();
+                            const russianText = germanEndMatch[2].trim();
+                            cleanText = `${germanText} (${russianText})`;
+                          }
+                        }
+
+                        // Ищем немецкую фразу: может быть с точкой или без, затем пробел и возможно скобка
+                        let germanMatch = cleanText.match(
+                          /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                        );
+
+                        // Если не нашли немецкую фразу в начале, ищем её после скобки
+                        if (!germanMatch && cleanText.startsWith("(")) {
+                          const afterBracket = cleanText.substring(1);
+                          germanMatch = afterBracket.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*\(/
+                          );
+                          if (germanMatch) {
+                            // Перестраиваем текст в правильном формате
+                            const germanText = germanMatch[1].trim();
+                            const restText = afterBracket.substring(
+                              germanMatch[0].length
+                            );
+                            cleanText = `${germanText} (${restText}`;
+                            germanMatch = cleanText.match(
+                              /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                            );
+                          }
+                        }
+
+                        // Если все еще не нашли, ищем немецкую фразу перед русским текстом
+                        if (!germanMatch) {
+                          // Ищем немецкую фразу, за которой сразу идет русский текст
+                          germanMatch = cleanText.match(
+                            /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s+([А-Яа-я\s]+)/
+                          );
+                          if (germanMatch) {
+                            const germanText = germanMatch[1].trim();
+                            const russianText = germanMatch[2].trim();
+                            cleanText = `${germanText} (${russianText})`;
+                            germanMatch = cleanText.match(
+                              /([A-Za-zÄÖÜäöüß\s?!]+?)(?:\s*\.)?\s*(?:\(|$)/
+                            );
+                          }
+                        }
+
+                        if (germanMatch) {
+                          const germanText = germanMatch[1].trim();
+                          // Получаем текст после немецкой фразы
+                          const restText = cleanText
+                            .replace(germanMatch[0], "")
+                            .trim();
+
+                          // Очищаем от лишних скобок и форматируем
+                          let formattedText = restText;
+
+                          // Убираем лишние закрывающие скобки в конце
+                          formattedText = formattedText.replace(/\)+$/, "");
+
+                          // Если текст не начинается со скобки, добавляем её
+                          if (!formattedText.startsWith("(")) {
+                            formattedText = `(${formattedText})`;
+                          }
+
+                          return (
+                            <li
+                              {...props}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.3rem",
+                              }}
+                            >
+                              <button
+                                onClick={() =>
+                                  speak && speak(germanText, "de-DE")
+                                }
+                                disabled={isSpeaking}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#2563eb",
+                                  cursor: "pointer",
+                                  padding: "0.1rem",
+                                  borderRadius: "0.2rem",
+                                  fontSize: "0.9em",
+                                  flexShrink: 0,
+                                }}
+                                title="Озвучить пример"
+                              >
+                                🔊
+                              </button>
+                              <span>
+                                <span style={{ textDecoration: "underline" }}>
+                                  {germanText}
+                                </span>
+                                {" " + formattedText}
+                              </span>
+                            </li>
+                          );
+                        }
+                        return <li {...props}>{children}</li>;
+                      },
+                    }}
+                  >
+                    {deWordInfo.data}
+                  </ReactMarkdown>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
@@ -1126,6 +1550,124 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
           -moz-user-select: none;
           -ms-user-select: none;
           user-select: none;
+        }
+
+        /* Стили для модалки немецкого слова */
+        .word-info-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2000;
+        }
+        
+        .word-info-content {
+          background: white;
+          border-radius: 0.8rem;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+          max-width: 640px;
+          width: 90%;
+          max-height: 80vh;
+          overflow: hidden;
+        }
+        
+        .word-info-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 1rem 1.5rem;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .word-info-header h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          color: #1e293b;
+        }
+        
+        .close-btn {
+          background: none;
+          border: none;
+          color: #64748b;
+          cursor: pointer;
+          padding: 0.3rem;
+          border-radius: 0.3rem;
+          transition: all 0.2s;
+        }
+        
+        .close-btn:hover {
+          background-color: #f1f5f9;
+          color: #475569;
+        }
+        
+        .word-info-body {
+          padding: 1.5rem;
+          max-height: 60vh;
+          overflow-y: auto;
+        }
+        
+        .word-info-loading {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          color: #64748b;
+        }
+        
+        .loading-spinner {
+          width: 1rem;
+          height: 1rem;
+          border: 2px solid #e2e8f0;
+          border-top: 2px solid #2563eb;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+        
+        .word-info-error {
+          color: #dc2626;
+          padding: 1rem;
+          background: #fef2f2;
+          border-radius: 0.5rem;
+          border: 1px solid #fecaca;
+        }
+        
+        .word-info-markdown {
+          line-height: 1.6;
+          font-size: 1rem;
+          color: #1e293b;
+        }
+        
+        .word-info-markdown h2, .word-info-markdown h3 {
+          margin-top: 1rem;
+          margin-bottom: 0.5rem;
+        }
+        
+        .word-info-markdown ul {
+          margin: 0.5rem 0;
+          padding-left: 1.5rem;
+        }
+        
+        .word-info-markdown li {
+          margin-bottom: 0.3rem;
+        }
+        
+        .word-info-markdown code {
+          background: #f1f5f9;
+          color: #1e293b;
+          padding: 0.1rem 0.3rem;
+          border-radius: 0.3rem;
+          font-size: 0.95em;
+        }
+        
+        @media (max-width: 480px) {
+          .word-info-content {
+            width: 95%;
+            margin: 1rem;
+          }
         }
       `}</style>
     </div>

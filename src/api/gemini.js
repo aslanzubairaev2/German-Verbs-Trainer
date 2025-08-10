@@ -378,17 +378,24 @@ export async function generateCurriculumPhrase({
     negation_basic: `Правильный выбор между nicht/kein. Одно короткое предложение.`,
   };
   const goal = targets[topic] || targets.present_simple;
+  const avoid =
+    Array.isArray(constraints.avoid) && constraints.avoid.length
+      ? `Не повторяй эти фразы (или почти идентичные): ${constraints.avoid
+          .map((s) => `"${s}"`)
+          .join(", ")}.`
+      : "";
 
   const prompt = `Ты методист A1. Сгенерируй ОДНО очень простое естественное предложение на немецком (и перевод) в JSON { "german":"...","russian":"..." }.
 Уровень: ${level}.
 Цель: ${goal}
 Правила уровня: ${rules[level] || rules.A1}
-Запрещено: сложные дополнения, подчинённые предложения, неестественные коллокации.
-Дай только JSON.`;
+${avoid}
+Требование по лексике: если есть существительные — используй корректные формы с артиклем в единственном числе, где это естественно (der/die/das). Множественное допускается только если это существенно для смысла.
+Запрещено: сложные дополнения, подчинённые предложения, неестественные коллокации. Дай только JSON.`;
 
   const data = await callModelJSON(prompt, {
     maxOutputTokens: 200,
-    temperature: 0.3,
+    temperature: 0.4,
   });
   return data;
 }

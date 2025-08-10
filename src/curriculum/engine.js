@@ -1,23 +1,17 @@
 // Минимальный CurriculumEngine для A1
 // - Хранит прогресс в localStorage
 // - Выдаёт следующую тему (topic) и уровень (level)
-// - Принимает результат выполнения задания
+// - Принимает результат выполнения задания и регистрирует сгенерированные фразы
 
 const LS_KEY = "curriculumProgressV1";
 
-const PLAN_A1 = [
-  // Простая последовательность тем A1
-  "present_simple", // простые утверждения/вопросы/отрицания (коротко)
-  "modal_basic", // können/müssen/wollen + инфинитив
-  "negation_basic", // nicht/kein
-];
+const PLAN_A1 = ["present_simple", "modal_basic", "negation_basic"];
 
 const INITIAL_PROGRESS = {
   level: "A1",
   topicIndex: 0,
-  stats: {
-    // topicId: { correct, total }
-  },
+  stats: {}, // topicId: { correct, total }
+  recent: [], // последние показанные фразы (german), для анти-повторов
 };
 
 export function getUserProgress() {
@@ -44,11 +38,12 @@ export function resetProgress() {
 export function getNextTask() {
   const progress = getUserProgress();
   const topic = PLAN_A1[progress.topicIndex % PLAN_A1.length];
+  const avoid = (progress.recent || []).slice(-8); // до 8 последних
   return {
     taskId: Date.now(),
     level: progress.level,
     topic,
-    constraints: {},
+    constraints: { avoid },
   };
 }
 
@@ -61,14 +56,20 @@ export function submitResult({ taskId, topic }, { isCorrect }) {
   progress.stats[key] = s;
 
   const accuracy = s.total > 0 ? s.correct / s.total : 0;
-  // Простые критерии перехода: 6 верных с точностью >= 0.75
   if (s.correct >= 6 && accuracy >= 0.75) {
     progress.topicIndex = (progress.topicIndex + 1) % PLAN_A1.length;
-    // Сбрасывать статистику по пройденной теме не будем — аккумулируем
   }
 
   saveUserProgress(progress);
   return progress;
 }
 
-
+export function registerGeneratedPhrase(german) {
+  if (!german) return;
+  const progress = getUserProgress();
+  const arr = Array.isArray(progress.recent) ? progress.recent : [];
+  arr.push(german);
+  // Держим последние 12
+  progress.recent = arr.slice(-12);
+  saveUserProgress(progress);
+}
