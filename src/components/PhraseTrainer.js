@@ -1234,7 +1234,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                           });
                         }
                         
-                        if ((isInfinitiveContext || isPotentialInfinitive) && onNavigateToVerb) {
+                        if (onNavigateToVerb && text && text.length > 2) { // ВРЕМЕННО: все strong кликабельны
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
@@ -1484,7 +1484,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                           });
                         }
                         
-                        if ((isInfinitiveContext || isPotentialInfinitive) && onNavigateToVerb) {
+                        if (onNavigateToVerb && text && text.length > 2) { // ВРЕМЕННО: все strong кликабельны
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
