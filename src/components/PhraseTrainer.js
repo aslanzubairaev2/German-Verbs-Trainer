@@ -23,7 +23,7 @@ import {
 /**
  * Компонент для тренировки немецких фраз из локального файла
  */
-function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
+function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb }) {
   const [loading, setLoading] = useState(false);
   const [phrase, setPhrase] = useState(null);
   const [error, setError] = useState(null);
@@ -53,6 +53,47 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
 
   // Состояние для режима обучения
   const [curriculumTask, setCurriculumTask] = useState(null);
+
+  // Функция для извлечения немецкого инфинитива из текста
+  const extractInfinitive = (text) => {
+    // Убираем лишние символы и разбиваем на слова
+    const cleanText = text.replace(/[^\w\säöüÄÖÜß]/g, ' ').trim();
+    
+    // Паттерн для поиска немецких слов (латинские буквы + умлауты + ß)
+    const germanWordPattern = /\b[a-zA-ZäöüÄÖÜß]+\b/g;
+    const words = cleanText.match(germanWordPattern);
+    
+    if (!words) return null;
+    
+    // Ищем слова, которые могут быть инфинитивами
+    // Инфинитивы обычно заканчиваются на -en, -ern, -eln, -n
+    const infinitivePattern = /^.+(en|ern|eln)$|^(sein|haben|werden|gehen|kommen|tun)$/;
+    
+    // Сначала ищем точные инфинитивы
+    for (const word of words) {
+      if (infinitivePattern.test(word.toLowerCase()) && word.length > 2) {
+        return word.toLowerCase();
+      }
+    }
+    
+    // Если не нашли точного инфинитива, ищем слова заканчивающиеся на -n (но длиннее 3 букв)
+    const fallbackPattern = /^.+n$/;
+    for (const word of words) {
+      if (fallbackPattern.test(word) && word.length > 3) {
+        return word.toLowerCase();
+      }
+    }
+    
+    // В крайнем случае возвращаем первое слово (если оно длиннее 2 букв)
+    return words[0] && words[0].length > 2 ? words[0].toLowerCase() : null;
+  };
+
+  // Функция для обработки клика на инфинитив
+  const handleInfinitiveClick = (infinitive) => {
+    if (onNavigateToVerb && infinitive) {
+      onNavigateToVerb(infinitive);
+    }
+  };
 
   // Функция озвучивания
   const speak = useCallback((text, lang = "de-DE") => {
@@ -1171,6 +1212,52 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
                 <div className="word-info-markdown">
                   <ReactMarkdown
                     components={{
+                      strong: ({ children, ...props }) => {
+                        const text = children?.toString() || "";
+                        
+                        // Проверяем, содержит ли строка инфинитив
+                        // Ищем паттерн "Инфинитив (нем.):" или похожие
+                        const parent = props.node?.parent;
+                        const parentText = parent?.children?.map(child => 
+                          child.type === 'text' ? child.value : 
+                          child.children?.map(c => c.value || '').join('') || ''
+                        ).join('') || '';
+                        
+                        const isInfinitiveContext = parentText.includes('инфинитив') || 
+                                                   parentText.includes('Инфинитив');
+                        
+                        if (isInfinitiveContext && onNavigateToVerb) {
+                          const infinitive = extractInfinitive(text);
+                          if (infinitive) {
+                            return (
+                              <strong 
+                                {...props}
+                                style={{
+                                  color: '#2563eb',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  borderRadius: '3px',
+                                  padding: '2px 4px',
+                                  background: 'rgba(37, 99, 235, 0.1)',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onClick={() => handleInfinitiveClick(infinitive)}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                }}
+                                title={`🎯 Перейти к отработке глагола "${infinitive}"`}
+                              >
+                                {children}
+                              </strong>
+                            );
+                          }
+                        }
+                        
+                        return <strong {...props}>{children}</strong>;
+                      },
                       li: ({ children, ...props }) => {
                         const text = children?.toString() || "";
 
@@ -1367,6 +1454,52 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false }) {
                 <div className="word-info-markdown">
                   <ReactMarkdown
                     components={{
+                      strong: ({ children, ...props }) => {
+                        const text = children?.toString() || "";
+                        
+                        // Проверяем, содержит ли строка инфинитив
+                        // Ищем паттерн "Инфинитив (нем.):" или похожие
+                        const parent = props.node?.parent;
+                        const parentText = parent?.children?.map(child => 
+                          child.type === 'text' ? child.value : 
+                          child.children?.map(c => c.value || '').join('') || ''
+                        ).join('') || '';
+                        
+                        const isInfinitiveContext = parentText.includes('инфинитив') || 
+                                                   parentText.includes('Инфинитив');
+                        
+                        if (isInfinitiveContext && onNavigateToVerb) {
+                          const infinitive = extractInfinitive(text);
+                          if (infinitive) {
+                            return (
+                              <strong 
+                                {...props}
+                                style={{
+                                  color: '#2563eb',
+                                  cursor: 'pointer',
+                                  textDecoration: 'underline',
+                                  borderRadius: '3px',
+                                  padding: '2px 4px',
+                                  background: 'rgba(37, 99, 235, 0.1)',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onClick={() => handleInfinitiveClick(infinitive)}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                }}
+                                title={`🎯 Перейти к отработке глагола "${infinitive}"`}
+                              >
+                                {children}
+                              </strong>
+                            );
+                          }
+                        }
+                        
+                        return <strong {...props}>{children}</strong>;
+                      },
                       li: ({ children, ...props }) => {
                         const text = children?.toString() || "";
 

@@ -171,6 +171,19 @@ function GermanVerbsApp() {
   // Curriculum mode trigger (каркас)
   // state curriculumMode уже объявлен выше; лишний блок удалён
 
+  // Функция для навигации к конкретному глаголу из PhraseTrainer
+  const navigateToVerb = useCallback((infinitive) => {
+    // Найти индекс глагола по инфинитиву
+    const verbIndex = allVerbs.findIndex(verb => verb.infinitive === infinitive);
+    if (verbIndex >= 0) {
+      // Обновить состояние с новым индексом глагола
+      setAppState(prev => ({ ...prev, lastVerbIndex: verbIndex }));
+      // Переключиться обратно в режим изучения глаголов
+      setShowPhraseTrainer(false);
+      setAudioReady(true);
+    }
+  }, []);
+
   // --- DERIVED STATE & MEMOS ---
   const availableVerbsForProgression = useMemo(
     () =>
@@ -453,6 +466,7 @@ function GermanVerbsApp() {
         <PhraseTrainer
           onBackToMain={() => setShowPhraseTrainer(false)}
           curriculumMode={curriculumMode}
+          onNavigateToVerb={navigateToVerb}
         />
       );
     }
