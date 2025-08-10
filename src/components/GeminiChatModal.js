@@ -15,17 +15,8 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
 
   // Управление состоянием чата
   useEffect(() => {
-    console.log("Chat state effect:", {
-      phraseId,
-      lastPhraseId,
-      show,
-      initialMessage,
-      messagesLength: messages.length,
-    });
-
-    // Если фраза изменилась, сбрасываем чат
+    // Если фраза изменилась — сбросить чат
     if (phraseId && phraseId !== lastPhraseId) {
-      console.log("Phrase changed, resetting chat");
       setMessages([]);
       setInputText("");
       setIsLoading(false);
@@ -33,55 +24,49 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
       setQuotedPhrases([]);
       setLastPhraseId(phraseId);
     }
+  }, [phraseId, lastPhraseId]);
 
-    // Если модалка открылась и нет сообщений, генерируем пояснение
-    if (
-      show &&
-      initialMessage &&
-      messages.length === 0 &&
-      phraseId &&
-      !isLoading
-    ) {
-      console.log("Generating explanation");
-      setIsLoading(true);
-
-      fetchGeminiChat({
-        message: initialMessage,
-        conversationHistory: [],
-      })
-        .then((response) => {
-          console.log("Got response:", response);
-          setMessages([
-            {
-              id: 1,
-              type: "assistant",
-              content: response,
-              timestamp: new Date(),
-            },
-          ]);
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          console.error("Error generating explanation:", error);
-          setMessages([
-            {
-              id: 1,
-              type: "assistant",
-              content: "Извините, произошла ошибка. Попробуйте ещё раз.",
-              timestamp: new Date(),
-            },
-          ]);
-          setIsLoading(false);
+  // Первичная генерация пояснения при открытии
+  useEffect(() => {
+    if (!show) return;
+    if (!initialMessage) return;
+    if (messages.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetchGeminiChat({
+          message: initialMessage,
+          conversationHistory: [],
         });
-    }
-  }, [
-    phraseId,
-    lastPhraseId,
-    show,
-    initialMessage,
-    messages.length,
-    isLoading,
-  ]);
+        if (cancelled) return;
+        setMessages([
+          {
+            id: Date.now(),
+            type: "assistant",
+            content: response,
+            timestamp: new Date(),
+          },
+        ]);
+      } catch (e) {
+        if (cancelled) return;
+        setMessages([
+          {
+            id: Date.now(),
+            type: "assistant",
+            content:
+              "Извините, не удалось получить объяснение. Попробуйте ещё раз.",
+            timestamp: new Date(),
+          },
+        ]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [show, initialMessage, messages.length]);
 
   // Автоскролл к последнему сообщению
   useEffect(() => {

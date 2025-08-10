@@ -23,6 +23,7 @@ import {
   RefreshCw,
   ChevronDown,
   Home,
+  Mic,
 } from "lucide-react";
 import { allVerbs } from "./verbsData.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 import VerbListModal from "./components/VerbListModal.js";
@@ -98,6 +99,80 @@ function GermanVerbsApp() {
   const [errors, setErrors] = useState(0);
   const [total, setTotal] = useState(0);
   const [showPhraseTrainer, setShowPhraseTrainer] = useState(false);
+
+  // Voice select verb
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  function stopVoice() {
+    try {
+      recognitionRef.current?.stop?.();
+    } catch {}
+    setListening(false);
+  }
+  async function handleVoicePickVerb() {
+    if (listening) {
+      stopVoice();
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      alert("Распознавание речи не поддерживается.");
+      return;
+    }
+    setListening(true);
+    const tryLang = (lang) =>
+      new Promise((resolve) => {
+        const rec = new SR();
+        recognitionRef.current = rec;
+        rec.lang = lang;
+        rec.interimResults = false;
+        rec.maxAlternatives = 3;
+        let resolved = false;
+        rec.onresult = (e) => {
+          const t = Array.from(e.results)
+            .map((r) => r[0]?.transcript || "")
+            .join(" ")
+            .trim();
+          if (!resolved) {
+            resolved = true;
+            resolve(t);
+          }
+        };
+        rec.onerror = () => resolve("");
+        rec.onend = () => !resolved && resolve("");
+        rec.start();
+      });
+    let said = await tryLang("ru-RU");
+    if (!said) said = await tryLang("de-DE");
+    stopVoice();
+    if (!said) return;
+    // Найти лучший глагол по infinitive/russian (простой поиск по includes + точное совпадение приоритетно)
+    const q = said.toLowerCase();
+    let idx = allVerbs.findIndex(
+      (v) => v.infinitive.toLowerCase() === q || v.russian.toLowerCase() === q
+    );
+    if (idx < 0)
+      idx = allVerbs.findIndex(
+        (v) =>
+          v.infinitive.toLowerCase().includes(q) ||
+          v.russian.toLowerCase().includes(q)
+      );
+    if (idx >= 0) {
+      setAppState((prev) => ({ ...prev, lastVerbIndex: idx }));
+      localStorage.setItem(
+        "germanVerbsState",
+        JSON.stringify({ ...appState, lastVerbIndex: idx })
+      );
+    }
+  }
+
+  // Curriculum mode trigger (каркас)
+  const [curriculumMode, setCurriculumMode] = useState(false);
+  function startCurriculum() {
+    setCurriculumMode(true);
+    setAudioReady(true);
+  }
 
   // --- DERIVED STATE & MEMOS ---
   const availableVerbsForProgression = useMemo(
@@ -383,6 +458,7 @@ function GermanVerbsApp() {
       <StartScreen
         onStart={() => setAudioReady(true)}
         onStartPhrases={() => setShowPhraseTrainer(true)}
+        onStartCurriculum={startCurriculum}
       />
     );
   }
@@ -627,6 +703,16 @@ function GermanVerbsApp() {
           className="fab-button gemini-fab"
         >
           <Sparkles />
+        </button>
+        <button
+          onClick={handleVoicePickVerb}
+          title={
+            listening ? "Остановить распознавание" : "Голосовой выбор глагола"
+          }
+          className="fab-button speak-fab"
+          style={{ backgroundColor: listening ? "#ef4444" : "#2563eb" }}
+        >
+          <Mic />
         </button>
       </div>
       {/* Стили возвращены для восстановления дизайна */}

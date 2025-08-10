@@ -5,7 +5,7 @@ import {
 } from "../constants/phraseVocabulary.js";
 
 // Единый клиент Gemini: GemeniGen (REST)
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-1.5-flash-latest";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 function getApiKey() {
@@ -14,9 +14,13 @@ function getApiKey() {
   return apiKey;
 }
 
-async function requestModel({ prompt, generationConfig = {} }) {
+async function requestModel({
+  prompt,
+  generationConfig = {},
+  model = MODEL_NAME,
+}) {
   const apiKey = getApiKey();
-  const url = `${API_BASE}/${MODEL_NAME}:generateContent?key=${apiKey}`;
+  const url = `${API_BASE}/${model}:generateContent?key=${apiKey}`;
   const payload = {
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     generationConfig,
@@ -27,16 +31,23 @@ async function requestModel({ prompt, generationConfig = {} }) {
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
+    try {
+      const errJson = await response.json();
+      console.warn("Gemini API error payload:", errJson);
+    } catch {}
     throw new Error(`API Error: ${response.status} ${response.statusText}`);
   }
   const result = await response.json();
-  const raw = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!raw) throw new Error("Пустой ответ от Gemini");
-  return raw;
+  const parts = result?.candidates?.[0]?.content?.parts;
+  const textPart = Array.isArray(parts)
+    ? parts.find((p) => typeof p?.text === "string")
+    : undefined;
+  const raw = textPart?.text?.trim();
+  return { result, raw };
 }
 
 function stripCodeFence(raw) {
-  if (!raw.startsWith("```")) return raw;
+  if (!raw || !raw.startsWith("```")) return raw;
   return raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
@@ -45,10 +56,8 @@ function stripCodeFence(raw) {
 }
 
 async function callModelJSON(prompt, options = {}) {
-  const raw = await requestModel({
-    prompt,
-    generationConfig: { responseMimeType: "application/json", ...options },
-  });
+  const gen = { responseMimeType: "application/json", ...options };
+  const { raw } = await requestModel({ prompt, generationConfig: gen });
   const cleaned = stripCodeFence(raw);
   try {
     const parsed = JSON.parse(cleaned);
@@ -59,8 +68,39 @@ async function callModelJSON(prompt, options = {}) {
 }
 
 async function callModelText(prompt, options = {}) {
-  const raw = await requestModel({ prompt, generationConfig: { ...options } });
-  return raw;
+  const gen = {
+    responseMimeType: "text/plain",
+    maxOutputTokens: options.maxOutputTokens ?? 1024,
+    ...options,
+  };
+  let { raw, result } = await requestModel({ prompt, generationConfig: gen });
+  if (raw && raw.length > 0) return raw;
+  let parts = result?.candidates?.[0]?.content?.parts || [];
+  let allText = parts
+    .map((p) => (typeof p?.text === "string" ? p.text : ""))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  if (allText) return allText;
+  const retryPrompt = `${prompt}\n\nОтветь максимально кратко (1-2 предложения) простым языком.`;
+  const genRetry = {
+    responseMimeType: "text/plain",
+    maxOutputTokens: Math.min(768, gen.maxOutputTokens ?? 768),
+    temperature: Math.min(0.4, gen.temperature ?? 0.4),
+  };
+  ({ raw, result } = await requestModel({
+    prompt: retryPrompt,
+    generationConfig: genRetry,
+  }));
+  if (raw && raw.length > 0) return raw;
+  parts = result?.candidates?.[0]?.content?.parts || [];
+  allText = parts
+    .map((p) => (typeof p?.text === "string" ? p.text : ""))
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  if (allText) return allText;
+  return "Извините, не удалось получить ответ. Попробуйте ещё раз.";
 }
 
 export const GemeniGen = {
@@ -257,14 +297,100 @@ export async function fetchGeminiPhrase({ setter }) {
 // --- Дополнительно: генерация похожей фразы (оставлено как задел) ---
 export async function fetchSimilarPhrase({ basePhrase, setter }) {
   try {
-    const prompt = `Возьми фразу: "${basePhrase?.german || ""}" (${
-      basePhrase?.russian || ""
-    }) и создай ещё одну ОЧЕНЬ ПРОСТУЮ естественную фразу уровня A1 в том же стиле.
-Дай JSON строго { "german": "...", "russian": "..." }.`;
-    const data = await callModelJSON(prompt, { temperature: 0.5 });
-    setter(data);
+    if (setter) setter({ loading: true, data: null, error: null });
+    const baseGerman = basePhrase?.german || "";
+    const baseRussian = basePhrase?.russian || "";
+    const prompt = `Создай ОДНУ очень простую ЕСТЕСТВЕННУЮ фразу уровня A1, похожую по смыслу и структуре на: "${baseGerman}" (${baseRussian}).
+Измени минимум 2 аспекта из списка: местоимение, глагол (соответствующий смыслу), дополнение (что/где/когда), или тип (утверждение/вопрос/отрицание).
+Запрещено: повторять дословно исходную фразу; создавай новый пример той же сложности.
+Дай строго JSON { "german": "...", "russian": "..." } без лишнего текста.`;
+    const data = await callModelJSON(prompt, { temperature: 0.6 });
+    if (setter) setter({ loading: false, data, error: null });
   } catch (error) {
     console.error("Fetch Similar Phrase Error:", error);
-    setter(null);
+    if (setter)
+      setter({
+        loading: false,
+        data: null,
+        error: error.message || "Не удалось сгенерировать похожую фразу",
+      });
   }
+}
+
+// Совместимость со старым именем
+export const generateSimilarPhrase = fetchSimilarPhrase;
+
+// --- Чат с Gemini: краткие методические ответы ---
+export async function fetchGeminiChat({ message, conversationHistory = [] }) {
+  const historyText = Array.isArray(conversationHistory)
+    ? conversationHistory
+        .map((m) =>
+          m.type === "user"
+            ? `Пользователь: ${m.content}`
+            : `Ассистент: ${m.content}`
+        )
+        .join("\n")
+    : "";
+
+  const prompt = `${
+    historyText ? `Контекст диалога:\n${historyText}\n\n` : ""
+  }Ты опытный преподаватель немецкого (A1-A2, метод Петрова). Отвечай кратко (1-3 предложения), просто, с примерами, при необходимости.
+Немецкие фразы и слова заключай в кавычки. Если просят объяснение фразы, разложи по пунктам: спряжение, порядок слов, отрицание и т.п.
+Вопрос: ${message}`;
+
+  try {
+    if (!process.env.REACT_APP_GEMINI_API_KEY) {
+      console.warn("Gemini: REACT_APP_GEMINI_API_KEY не найден в окружении");
+      return "API ключ не настроен. Укажите REACT_APP_GEMINI_API_KEY и перезапустите dev-сервер.";
+    }
+
+    const text = await callModelText(prompt, {
+      temperature: 0.5,
+      maxOutputTokens: 768,
+    });
+    return text.trim();
+  } catch (error) {
+    console.error("fetchGeminiChat error:", error);
+    const errStr = (error?.message || "").toLowerCase();
+    if (
+      errStr.includes("overloaded") ||
+      errStr.includes("unavailable") ||
+      errStr.includes("503")
+    ) {
+      return "Сервер перегружен. Пожалуйста, попробуйте позже.";
+    }
+    return "Извините, не удалось получить ответ. Попробуйте ещё раз.";
+  }
+}
+
+// Генерация фразы по учебной программе (каркас)
+export async function generateCurriculumPhrase({
+  level = "A1",
+  topic = "present_simple",
+  constraints = {},
+}) {
+  const rules = {
+    A1: `Только простые предложения 2-4 слова. Настоящее время. Допускаются модальные с обязательным инфинитивом. Без сложных дополнений. Отрицание: nicht/kein корректно.`,
+    A2: `Можно Perfekt и простые отделяемые глаголы. Без придаточных. Коротко и естественно.`,
+    B1: `Можно вопросы/отрицания сложнее и простые связки. Ограничить длину до 6-8 слов.`,
+  };
+  const targets = {
+    present_simple: `Утверждение/вопрос/отрицание в Präsens. Одно естественное короткое предложение.`,
+    modal_basic: `Модальные глаголы (können/müssen/wollen) только с инфинитивом в конце. Одно короткое предложение.`,
+    negation_basic: `Правильный выбор zwischen nicht/kein. Одно короткое короткое предложение.`,
+  };
+  const goal = targets[topic] || targets.present_simple;
+
+  const prompt = `Ты методист A1–B1. Сгенерируй ОДНО очень простое естественное предложение на немецком (и перевод) в JSON { "german":"...","russian":"..." }.
+Уровень: ${level}.
+Цель: ${goal}
+Правила уровня: ${rules[level] || rules.A1}
+Запрещено: сложные дополнения, подчинённые предложения, необычные коллокации.
+Дай только JSON. Затем проверь сам себя: если фраза нарушает правила — пересоздай внутри, пока не будет соответствия.`;
+
+  const data = await callModelJSON(prompt, {
+    temperature: 0.3,
+    maxOutputTokens: 120,
+  });
+  return data;
 }

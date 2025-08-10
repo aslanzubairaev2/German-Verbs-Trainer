@@ -11,7 +11,7 @@ import React from "react";
  * - Описание стало короче и меньше по размеру.
  * - Шрифт заголовка и описания более нейтральный, без избыточной жирности.
  */
-function StartScreen({ onStart, onStartPhrases }) {
+function StartScreen({ onStart, onStartPhrases, onStartCurriculum }) {
   return (
     <div className="start-screen">
       <div className="cards-container">
@@ -28,6 +28,14 @@ function StartScreen({ onStart, onStartPhrases }) {
           <h2>Отработка фраз</h2>
           <p>Тренируйте полезные немецкие фразы для повседневного общения.</p>
           <button className="btn-phrases" onClick={onStartPhrases}>
+            Начать
+          </button>
+        </div>
+        {/* Карточка: Учиться по программе */}
+        <div className="start-card card-curriculum">
+          <h2>Учиться по программе</h2>
+          <p>Индивидуальная программа: простые фразы ИИ по вашему уровню.</p>
+          <button className="btn-curriculum" onClick={onStartCurriculum}>
             Начать
           </button>
         </div>
@@ -119,6 +127,14 @@ function StartScreen({ onStart, onStartPhrases }) {
           border-radius: 6px;
           background: linear-gradient(180deg, #fbbf24 0%, #ef4444 100%);
         }
+        .card-curriculum::before {
+          content: "";
+          position: absolute;
+          left: 0; top: 1.2rem; bottom: 1.2rem;
+          width: 7px;
+          border-radius: 6px;
+          background: linear-gradient(180deg, #10b981 0%, #2563eb 100%);
+        }
         .start-card h2 {
           font-size: 1.25rem;
           font-weight: 700;
@@ -169,6 +185,24 @@ function StartScreen({ onStart, onStartPhrases }) {
           background: linear-gradient(90deg, #ef4444 0%, #fbbf24 100%);
           transform: translateY(-2px) scale(1.035);
           box-shadow: 0 8px 24px rgba(251, 191, 36, 0.18);
+        }
+        .btn-curriculum {
+          padding: 0.7rem 2rem;
+          background: linear-gradient(90deg, #10b981 0%, #2563eb 100%);
+          color: #fff;
+          border: none;
+          border-radius: 0.7rem;
+          font-size: 1.08rem;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.13);
+          cursor: pointer;
+          transition: background 0.18s, transform 0.13s, box-shadow 0.18s;
+          outline: none;
+        }
+        .btn-curriculum:hover, .btn-curriculum:focus {
+          background: linear-gradient(90deg, #2563eb 0%, #10b981 100%);
+          transform: translateY(-2px) scale(1.035);
+          box-shadow: 0 8px 24px rgba(16, 185, 129, 0.18);
         }
         @media (max-width: 800px) {
           .cards-container { flex-direction: column; gap: 1.2rem; }
