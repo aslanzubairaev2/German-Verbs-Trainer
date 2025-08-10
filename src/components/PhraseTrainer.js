@@ -1216,10 +1216,23 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                         const text = children || '';
                         const fullMarkdown = ruWordInfo?.data || '';
                         
+                        // ОТЛАДКА: логируем все текстовые узлы
+                        if (text && typeof text === 'string' && text.length > 5) {
+                          console.log('TEXT NODE RU:', {
+                            text: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+                            fullText: text
+                          });
+                        }
+                        
                         // Ищем инфинитив после "Инфинитив (нем.):"
                         const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
                         const afterMatch = fullMarkdown.match(afterInfinitivePattern);
                         const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        // ОТЛАДКА: логируем найденный инфинитив
+                        if (infinitiveAfterColon) {
+                          console.log('FOUND INFINITIVE RU:', infinitiveAfterColon, 'in text:', text.includes(infinitiveAfterColon));
+                        }
                         
                         if (infinitiveAfterColon && typeof text === 'string' && text.includes(infinitiveAfterColon)) {
                           // Заменяем инфинитив на кликабельную версию
@@ -1533,10 +1546,23 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                         const text = children || '';
                         const fullMarkdown = deWordInfo?.data || '';
                         
+                        // ОТЛАДКА: логируем все текстовые узлы
+                        if (text && typeof text === 'string' && text.length > 5) {
+                          console.log('TEXT NODE DE:', {
+                            text: text.substring(0, 50) + (text.length > 50 ? '...' : ''),
+                            fullText: text
+                          });
+                        }
+                        
                         // Ищем инфинитив после "Инфинитив (нем.):"
                         const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
                         const afterMatch = fullMarkdown.match(afterInfinitivePattern);
                         const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        // ОТЛАДКА: логируем найденный инфинитив
+                        if (infinitiveAfterColon) {
+                          console.log('FOUND INFINITIVE DE:', infinitiveAfterColon, 'in text:', text.includes(infinitiveAfterColon));
+                        }
                         
                         if (infinitiveAfterColon && typeof text === 'string' && text.includes(infinitiveAfterColon)) {
                           // Заменяем инфинитив на кликабельную версию
