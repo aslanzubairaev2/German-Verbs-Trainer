@@ -1212,6 +1212,67 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                 <div className="word-info-markdown">
                   <ReactMarkdown
                     components={{
+                      p: ({ children, ...props }) => {
+                        // Обрабатываем содержимое параграфа
+                        const fullMarkdown = ruWordInfo?.data || '';
+                        
+                        // ОТЛАДКА
+                        console.log('PARAGRAPH RU:', children);
+                        
+                        // Ищем инфинитив после "Инфинитив (нем.):"
+                        const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
+                        const afterMatch = fullMarkdown.match(afterInfinitivePattern);
+                        const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        if (infinitiveAfterColon) {
+                          console.log('FOUND INFINITIVE IN P RU:', infinitiveAfterColon);
+                          
+                          // Обрабатываем children
+                          const processedChildren = React.Children.map(children, (child) => {
+                            if (typeof child === 'string' && child.includes(infinitiveAfterColon)) {
+                              console.log('REPLACING IN STRING:', child);
+                              // Заменяем инфинитив на кликабельную версию
+                              const parts = child.split(infinitiveAfterColon);
+                              return parts.map((part, index) => {
+                                if (index === parts.length - 1) return part;
+                                return (
+                                  <React.Fragment key={index}>
+                                    {part}
+                                    <span
+                                      style={{
+                                        color: '#2563eb',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline',
+                                        borderRadius: '3px',
+                                        padding: '2px 4px',
+                                        background: 'rgba(37, 99, 235, 0.1)',
+                                        transition: 'all 0.2s ease',
+                                        fontWeight: 'bold'
+                                      }}
+                                      onClick={() => handleInfinitiveClick(infinitiveAfterColon)}
+                                      onMouseEnter={(e) => {
+                                        e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                      }}
+                                      title={`🎯 Перейти к отработке глагола "${infinitiveAfterColon}"`}
+                                    >
+                                      {infinitiveAfterColon}
+                                    </span>
+                                  </React.Fragment>
+                                );
+                              });
+                            }
+                            return child;
+                          });
+                          
+                          return <p {...props}>{processedChildren}</p>;
+                        }
+                        
+                        return <p {...props}>{children}</p>;
+                      },
+                      
                       text: ({ children, ...props }) => {
                         const text = children || '';
                         const fullMarkdown = ruWordInfo?.data || '';
@@ -1542,6 +1603,67 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                 <div className="word-info-markdown">
                   <ReactMarkdown
                     components={{
+                      p: ({ children, ...props }) => {
+                        // Обрабатываем содержимое параграфа
+                        const fullMarkdown = deWordInfo?.data || '';
+                        
+                        // ОТЛАДКА
+                        console.log('PARAGRAPH DE:', children);
+                        
+                        // Ищем инфинитив после "Инфинитив (нем.):"
+                        const afterInfinitivePattern = /Инфинитив\s*\(нем\.\)\s*:\s*([a-zA-ZäöüÄÖÜß]+)/i;
+                        const afterMatch = fullMarkdown.match(afterInfinitivePattern);
+                        const infinitiveAfterColon = afterMatch ? afterMatch[1] : null;
+                        
+                        if (infinitiveAfterColon) {
+                          console.log('FOUND INFINITIVE IN P DE:', infinitiveAfterColon);
+                          
+                          // Обрабатываем children
+                          const processedChildren = React.Children.map(children, (child) => {
+                            if (typeof child === 'string' && child.includes(infinitiveAfterColon)) {
+                              console.log('REPLACING IN STRING:', child);
+                              // Заменяем инфинитив на кликабельную версию
+                              const parts = child.split(infinitiveAfterColon);
+                              return parts.map((part, index) => {
+                                if (index === parts.length - 1) return part;
+                                return (
+                                  <React.Fragment key={index}>
+                                    {part}
+                                    <span
+                                      style={{
+                                        color: '#2563eb',
+                                        cursor: 'pointer',
+                                        textDecoration: 'underline',
+                                        borderRadius: '3px',
+                                        padding: '2px 4px',
+                                        background: 'rgba(37, 99, 235, 0.1)',
+                                        transition: 'all 0.2s ease',
+                                        fontWeight: 'bold'
+                                      }}
+                                      onClick={() => handleInfinitiveClick(infinitiveAfterColon)}
+                                      onMouseEnter={(e) => {
+                                        e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                      }}
+                                      title={`🎯 Перейти к отработке глагола "${infinitiveAfterColon}"`}
+                                    >
+                                      {infinitiveAfterColon}
+                                    </span>
+                                  </React.Fragment>
+                                );
+                              });
+                            }
+                            return child;
+                          });
+                          
+                          return <p {...props}>{processedChildren}</p>;
+                        }
+                        
+                        return <p {...props}>{children}</p>;
+                      },
+                      
                       text: ({ children, ...props }) => {
                         const text = children || '';
                         const fullMarkdown = deWordInfo?.data || '';
