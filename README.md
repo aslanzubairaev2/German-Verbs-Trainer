@@ -1,7 +1,5 @@
 # German Verbs Trainer
 
-![German Verbs Trainer Interface](https://user-images.githubusercontent.com/89396652/230769398-39825a07-1b3c-41f0-9189-9d628c531518.png)
-
 This is an interactive web application designed to help you learn and practice the conjugation of German verbs in the present tense (Präsens). It's perfect for both beginners and intermediate learners of the German language.
 
 ## About The Project
