@@ -258,6 +258,7 @@ td { border: 1px solid var(--gray-200); padding: 0.75rem; }
   display: flex;
   justify-content: center;
   gap: 1rem;
+  width: 100%;
 }
 .fab-button {
   width: 56px;

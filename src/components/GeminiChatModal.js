@@ -13,6 +13,7 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const lineHeightRef = useRef(20);
+  const [maxHeightPx, setMaxHeightPx] = useState(null);
 
   // Управление состоянием чата
   useEffect(() => {
@@ -99,6 +100,29 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
     return () => {
       clearTimeout(to1);
       clearTimeout(to2);
+    };
+  }, [show]);
+
+  // Динамический max-height с учётом клавиатуры на мобильных (visualViewport)
+  useEffect(() => {
+    if (!show) return;
+    const recompute = () => {
+      const vh = window.visualViewport
+        ? window.visualViewport.height
+        : window.innerHeight;
+      // Отступ сверху 8px, ограничение минимум/максимум
+      const h = Math.max(360, Math.min(vh - 8, 800));
+      setMaxHeightPx(h);
+    };
+    recompute();
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", recompute);
+    window.addEventListener("orientationchange", recompute);
+    window.addEventListener("resize", recompute);
+    return () => {
+      vv?.removeEventListener("resize", recompute);
+      window.removeEventListener("orientationchange", recompute);
+      window.removeEventListener("resize", recompute);
     };
   }, [show]);
 
@@ -413,7 +437,13 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
 
   return (
     <div className="gemini-chat-modal-container">
-      <div className="gemini-chat-modal-card slide-up">
+      <div
+        className="gemini-chat-modal-card slide-up"
+        style={{
+          maxHeight: maxHeightPx ? `${maxHeightPx}px` : undefined,
+          height: "auto",
+        }}
+      >
         {/* Заголовок */}
         <div className="gemini-chat-modal-header">
           <div className="gemini-chat-modal-title">
@@ -637,7 +667,7 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
         .gemini-chat-modal-card {
           width: 100vw;
           max-width: 500px;
-          height: 70vh;
+          height: auto;
           border-radius: 1.2rem 1.2rem 0 0;
           background: #fff;
           box-shadow: 0 -8px 32px rgba(37,99,235,0.13), 0 -2px 8px rgba(0,0,0,0.07);
