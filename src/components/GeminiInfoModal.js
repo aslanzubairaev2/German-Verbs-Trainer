@@ -16,6 +16,7 @@ const GeminiInfoModal = ({
   onFetch,
   speak,
   isSpeaking,
+  onOpenChat,
 }) => {
   const [geminiInfo, setGeminiInfo] = useState({
     loading: false,
@@ -195,11 +196,12 @@ const GeminiInfoModal = ({
           </button>
         </div>
         <div className="modal-body-container">{content}</div>
-        <div className="modal-footer">
+        <div className="modal-footer" style={{ display: "flex", gap: 8 }}>
           <button
             className="regenerate-btn-footer"
             onClick={() => handleFetch(true)}
             disabled={geminiInfo.loading}
+            style={{ flex: 1 }}
           >
             {geminiInfo.loading ? (
               <LoaderCircle className="loader-small" />
@@ -207,6 +209,13 @@ const GeminiInfoModal = ({
               <RefreshCw size={16} />
             )}
             <span>Еще варианты</span>
+          </button>
+          <button
+            className="regenerate-btn-footer"
+            onClick={() => onOpenChat && onOpenChat()}
+            style={{ flex: 1, backgroundColor: "#a855f7" }}
+          >
+            <span>Открыть чат</span>
           </button>
         </div>
       </div>

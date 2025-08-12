@@ -30,6 +30,7 @@ import VerbListModal from "./components/VerbListModal.js";
 import { loadUserVerbs } from "./storage/userVerbs";
 import SettingsModal from "./components/SettingsModal.js";
 import GeminiInfoModal from "./components/GeminiInfoModal.js";
+import GeminiChatModal from "./components/GeminiChatModal.js";
 import LevelUpToast from "./components/LevelUpToast.js";
 import VerbFormsDisplay from "./components/VerbFormsDisplay.js";
 import {
@@ -93,6 +94,7 @@ function GermanVerbsApp() {
   const [showHint, setShowHint] = useState(false);
   const [levelUpMessage, setLevelUpMessage] = useState("");
   const [showGeminiModal, setShowGeminiModal] = useState(false);
+  const [showVerbChat, setShowVerbChat] = useState(false);
   const [geminiDataCache, setGeminiDataCache] = useState({});
   const [verbFormsCache, setVerbFormsCache] = useState({}); // <-- Кэш для новых форм
   const [studyView, setStudyView] = useState("conjugation"); // 'conjugation' или 'forms'
@@ -510,6 +512,12 @@ function GermanVerbsApp() {
         onFetch={handleFetchGeminiInfo}
         speak={speak}
         isSpeaking={isSpeaking}
+        onOpenChat={() => setShowVerbChat(true)}
+      />
+      <GeminiChatModal
+        show={showVerbChat}
+        onClose={() => setShowVerbChat(false)}
+        initialMessage={`Я изучаю глагол "${currentVerb.infinitive}" (${currentVerb.russian}). Дай короткое объяснение и 3-5 простых примеров A1-A2. Затем буду задавать вопросы.`}
       />
       <VerbListModal
         show={showVerbList}
@@ -715,31 +723,33 @@ function GermanVerbsApp() {
         </div>
       </div>
 
-      <div className="fab-container">
-        <button
-          onClick={() => setShowGeminiModal(true)}
-          title="Узнать больше"
-          className="fab-button gemini-fab"
-        >
-          <Sparkles />
-        </button>
-        <button
-          onClick={() => speak(currentVerb.infinitive)}
-          disabled={isSpeaking}
-          className="fab-button speak-fab"
-        >
-          <Volume2 />
-        </button>
-        <button
-          onClick={handleVoicePickVerb}
-          title={
-            listening ? "Остановить распознавание" : "Голосовой выбор глагола"
-          }
-          className="fab-button speak-fab"
-          style={{ backgroundColor: listening ? "#ef4444" : "#2563eb" }}
-        >
-          <Mic />
-        </button>
+      <div className="fab-root">
+        <div className="fab-container">
+          <button
+            onClick={() => setShowGeminiModal(true)}
+            title="Инфо по глаголу"
+            className="fab-button gemini-fab"
+          >
+            <HelpCircle />
+          </button>
+          <button
+            onClick={() => setShowVerbChat(true)}
+            title="Чат по глаголу"
+            className="fab-button speak-fab"
+          >
+            <Sparkles />
+          </button>
+          <button
+            onClick={handleVoicePickVerb}
+            title={
+              listening ? "Остановить распознавание" : "Голосовой выбор глагола"
+            }
+            className="fab-button speak-fab"
+            style={{ backgroundColor: listening ? "#ef4444" : "#2563eb" }}
+          >
+            <Mic />
+          </button>
+        </div>
       </div>
       {/* Стили возвращены для восстановления дизайна */}
       <style>{`
@@ -1091,13 +1101,15 @@ function GermanVerbsApp() {
                 .hint-box { padding: 0.75rem 1rem; background-color: var(--yellow-100); border-radius: 0.5rem; display: inline-block; font-weight: 500; }
 
                 /* --- Плавающие кнопки действий (FAB, GermanVerbsApp) --- */
-                .fab-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 40; display: flex; flex-direction: row; gap: 10px; }
+                .fab-root { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+                .fab-container { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; pointer-events: all; }
                 .fab-button {
                     width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
                     justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: var(--white);
                 }
-                .fab-button.speak-fab { background-color: var(--blue-600); }
-                .fab-button.gemini-fab { background-color: var(--purple-500); }
+                .fab-button.speak-fab { background-color: var(--purple-500); }
+                .fab-button.gemini-fab { background-color: var(--blue-600); }
+                .fab-button.gemini-fab svg { width: 26px; height: 26px; }
                 .fab-button:hover { transform: scale(1.05); filter: brightness(1.1); opacity: 100}
 
                 /* --- Модальные окна и тосты (GeminiInfoModal, SettingsModal, VerbListModal, LevelUpToast) --- */

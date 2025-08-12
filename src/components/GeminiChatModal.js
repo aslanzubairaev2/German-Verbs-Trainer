@@ -12,6 +12,7 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
   const [quotedPhrases, setQuotedPhrases] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const lineHeightRef = useRef(20);
 
   // Управление состоянием чата
   useEffect(() => {
@@ -79,11 +80,26 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
 
   // Фокус на поле ввода при открытии
   useEffect(() => {
-    if (show) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 100);
-    }
+    if (!show) return;
+    // Дадим кадр на монтирование, затем сфокусируем. Повтор — на случай анимации.
+    const to1 = setTimeout(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        try {
+          const cs = window.getComputedStyle(el);
+          const lh = parseFloat(cs.lineHeight || "20");
+          if (!Number.isNaN(lh)) lineHeightRef.current = lh;
+        } catch {}
+      }
+    }, 50);
+    const to2 = setTimeout(() => {
+      inputRef.current?.focus?.();
+    }, 200);
+    return () => {
+      clearTimeout(to1);
+      clearTimeout(to2);
+    };
   }, [show]);
 
   const scrollToBottom = () => {
@@ -541,9 +557,14 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
               placeholder="Спросить Gemini"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
+              onInput={(e) => {
+                const el = e.currentTarget;
+                el.style.height = "auto";
+                const maxH = lineHeightRef.current * 5 + 10; // до 5 строк
+                el.style.height = Math.min(el.scrollHeight, maxH) + "px";
+              }}
               onKeyPress={handleKeyPress}
               rows="1"
-              disabled={isLoading}
             />
             <div className="gemini-chat-input-buttons">
               <button
@@ -850,7 +871,8 @@ function GeminiChatModal({ show, initialMessage, onClose, phraseId }) {
           color: #334155;
           outline: none;
           min-height: 20px;
-          max-height: 100px;
+          max-height: calc(1.4em * 5 + 10px);
+          overflow-y: auto;
         }
         
         .gemini-chat-input::placeholder {
