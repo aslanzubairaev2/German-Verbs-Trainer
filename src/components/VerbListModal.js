@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
-import { X, Search, Check, Mic, MicOff } from "lucide-react";
+import { X, Search, Check, Mic, MicOff, Plus } from "lucide-react";
+import { generateFullVerbByPrompt } from "../api/gemini";
+import { addUserVerb, loadUserVerbs } from "../storage/userVerbs";
 
 const LEVEL_ORDER = ["A1", "A2", "B1", "B2"];
 
@@ -58,14 +60,23 @@ const VerbListModal = ({
   onSelectVerb,
   verbs,
   masteredVerbs,
+  onAddedVerb,
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [listening, setListening] = useState(false);
   const recognitionRef = useRef(null);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
 
-  // Сбрасываем строку поиска при открытии модалки
+  // Сбрасываем строку поиска и ставим фокус на инпут при открытии модалки (web)
+  const inputRef = useRef(null);
   useEffect(() => {
-    if (show) setSearchTerm("");
+    if (show) {
+      setSearchTerm("");
+      try {
+        inputRef.current?.focus?.();
+      } catch {}
+    }
   }, [show]);
 
   const filteredVerbs = useMemo(() => {
@@ -84,6 +95,42 @@ const VerbListModal = ({
       return acc;
     }, {});
   }, [filteredVerbs]);
+
+  const noResults = Object.keys(groupedVerbs).length === 0;
+
+  async function handleAddByAI() {
+    if (!searchTerm.trim() || adding) return;
+    setAdding(true);
+    setAddError("");
+    try {
+      const data = await generateFullVerbByPrompt({ query: searchTerm.trim() });
+      // простая валидация
+      if (
+        !data?.infinitive ||
+        !Array.isArray(data?.forms) ||
+        data.forms.length !== 6
+      ) {
+        throw new Error("Некорректные данные от модели");
+      }
+      addUserVerb({
+        infinitive: data.infinitive,
+        russian: data.russian || "",
+        level: data.level || "A1",
+        type: data.type || "regular",
+        forms: data.forms,
+        _user: true,
+      });
+      // обновляем поиск новым инфинитивом
+      setSearchTerm(data.infinitive);
+      if (typeof onAddedVerb === "function") onAddedVerb();
+    } catch (e) {
+      setAddError(
+        "Не удалось добавить. Попробуйте иначе сформулировать запрос."
+      );
+    } finally {
+      setAdding(false);
+    }
+  }
 
   function stopRecognition() {
     try {
@@ -149,7 +196,19 @@ const VerbListModal = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="verb-list-modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="verb-list-modal"
+        style={{
+          position: "relative",
+          background: "#fff",
+          borderRadius: "0.75rem",
+          maxWidth: "640px",
+          width: "95vw",
+          maxHeight: "83dvh",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           onClick={onClose}
           className="modal-close-btn"
@@ -201,6 +260,22 @@ const VerbListModal = ({
                 placeholder="Поиск на немецком или русском..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && noResults && searchTerm.trim()) {
+                    handleAddByAI();
+                  } else if (e.key === "Enter" && !noResults) {
+                    // если есть единственный результат — выбрать его
+                    const levels = Object.keys(groupedVerbs);
+                    let onlyVerb = null;
+                    let count = 0;
+                    for (const lvl of levels) {
+                      const arr = groupedVerbs[lvl] || [];
+                      count += arr.length;
+                      if (arr.length === 1 && !onlyVerb) onlyVerb = arr[0];
+                    }
+                    if (count === 1 && onlyVerb) onSelectVerb(onlyVerb);
+                  }
+                }}
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -209,6 +284,7 @@ const VerbListModal = ({
                   fontSize: "1rem",
                   padding: "0.5rem 2rem 0.5rem 2rem",
                 }}
+                ref={inputRef}
               />
             </div>
             {/* Микрофон */}
@@ -234,7 +310,58 @@ const VerbListModal = ({
           </div>
         </div>
         <div className="modal-body-container">
-          {Object.keys(groupedVerbs).length > 0 ? (
+          {noResults ? (
+            <div style={{ textAlign: "center", padding: "2rem 1rem" }}>
+              <p className="no-results" style={{ marginBottom: 12 }}>
+                Глагол не найден.
+              </p>
+              <button
+                onClick={handleAddByAI}
+                disabled={adding || !searchTerm.trim()}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "0.6rem 1rem",
+                  borderRadius: 8,
+                  background: adding ? "#93c5fd" : "#2563eb",
+                  color: "#fff",
+                }}
+                title="Добавить глагол через ИИ"
+              >
+                {adding ? (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span
+                      className="loader-small"
+                      style={{
+                        border: "2px solid transparent",
+                        borderTop: "2px solid #fff",
+                        width: 14,
+                        height: 14,
+                        borderRadius: 999,
+                        display: "inline-block",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                    Добавляем…
+                  </span>
+                ) : (
+                  <>
+                    <Plus size={16} /> Добавить «{searchTerm || "..."}»
+                  </>
+                )}
+              </button>
+              {addError && (
+                <div style={{ color: "#b91c1c", marginTop: 8 }}>{addError}</div>
+              )}
+            </div>
+          ) : (
             LEVEL_ORDER.map(
               (level) =>
                 groupedVerbs[level] && (
@@ -261,8 +388,6 @@ const VerbListModal = ({
                   </div>
                 )
             )
-          ) : (
-            <p className="no-results">Глаголы не найдены.</p>
           )}
         </div>
       </div>

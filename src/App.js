@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { allVerbs } from "./verbsData.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 import VerbListModal from "./components/VerbListModal.js";
+import { loadUserVerbs } from "./storage/userVerbs";
 import SettingsModal from "./components/SettingsModal.js";
 import GeminiInfoModal from "./components/GeminiInfoModal.js";
 import LevelUpToast from "./components/LevelUpToast.js";
@@ -101,6 +102,7 @@ function GermanVerbsApp() {
   const [total, setTotal] = useState(0);
   const [showPhraseTrainer, setShowPhraseTrainer] = useState(false);
   const [curriculumMode, setCurriculumMode] = useState(false);
+  const [verbsRevision, setVerbsRevision] = useState(0);
 
   // Voice select verb
   const [listening, setListening] = useState(false);
@@ -188,12 +190,26 @@ function GermanVerbsApp() {
   }, []);
 
   // --- DERIVED STATE & MEMOS ---
+  const combinedVerbs = useMemo(() => {
+    try {
+      const user = loadUserVerbs();
+      const map = new Map();
+      for (const v of allVerbs) map.set(v.infinitive, v);
+      for (const v of user) map.set(v.infinitive, v);
+      return Array.from(map.values());
+    } catch {
+      return allVerbs;
+    }
+  }, [verbsRevision, appState.lastVerbIndex]);
+
   const availableVerbsForProgression = useMemo(
     () =>
-      allVerbs.filter((verb) => appState.unlockedLevels.includes(verb.level)),
-    [appState.unlockedLevels]
+      combinedVerbs.filter((verb) =>
+        appState.unlockedLevels.includes(verb.level)
+      ),
+    [combinedVerbs, appState.unlockedLevels]
   );
-  const currentVerb = allVerbs[appState.lastVerbIndex];
+  const currentVerb = combinedVerbs[appState.lastVerbIndex] || combinedVerbs[0];
   const currentLevel =
     appState.unlockedLevels[appState.unlockedLevels.length - 1];
 
@@ -319,10 +335,11 @@ function GermanVerbsApp() {
   };
 
   const selectVerb = (verb) => {
-    const verbIndex = allVerbs.findIndex(
+    // Ищем индекс в объединённом списке, чтобы поддержать пользовательские глаголы
+    const verbIndex = combinedVerbs.findIndex(
       (v) => v.infinitive === verb.infinitive
     );
-    if (verbIndex !== -1) {
+    if (verbIndex >= 0) {
       setAppState((prev) => ({ ...prev, lastVerbIndex: verbIndex }));
       setPracticeMode(false);
       resetVerbState();
@@ -498,8 +515,9 @@ function GermanVerbsApp() {
         show={showVerbList}
         onClose={() => setShowVerbList(false)}
         onSelectVerb={selectVerb}
-        verbs={allVerbs}
+        verbs={combinedVerbs}
         masteredVerbs={appState.masteredVerbs}
+        onAddedVerb={() => setVerbsRevision((v) => v + 1)}
       />
       <SettingsModal
         show={showSettings}

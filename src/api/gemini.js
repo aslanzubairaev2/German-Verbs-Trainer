@@ -264,6 +264,29 @@ export async function fetchContextExamples({
     setter(`<b>${correctForm}</b> - правильная форма для "${pronoun}"`);
   }
 }
+// --- Генерация полного описания глагола (инфинитив, перевод, формы 6 лиц) ---
+export async function generateFullVerbByPrompt({ query }) {
+  // query может быть DE или RU ("springen" или "прыгать")
+  const prompt = `Ты методист по немецкому. Дай строго JSON объекта глагола для тренажёра:
+{
+  "infinitive": "...", // немецкий инфинитив
+  "russian": "...",    // перевод на русский одним словом или короткой фразой
+  "level": "A1|A2|B1|B2",
+  "type": "regular|weak|strong|mixed|modal|irregular",
+  "forms": ["ich ...","du ...","er/sie/es ...","wir ...","ihr ...","sie/Sie ..."]
+}
+Если на вход подан русский вариант (например "прыгать"), корректно подбери немецкий инфинитив.
+В формах укажи Präsens.
+Только валидный JSON без пояснений.
+
+Запрос: ${query}`;
+
+  const data = await callModelJSON(prompt, {
+    maxOutputTokens: 200,
+    temperature: 0.2,
+  });
+  return data;
+}
 
 // --- Генерация простой фразы для тренировки ---
 export async function fetchGeminiPhrase({ setter }) {
