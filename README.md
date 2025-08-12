@@ -6,6 +6,8 @@ This is an interactive web application designed to help you learn and practice t
 
 Learning verb conjugations is one of the most fundamental yet challenging parts of mastering the German language. This project was created to make this process more engaging and effective. Instead of monotonously memorizing tables, you can practice in an interactive format and get instant feedback.
 
+https://german-verbs-trainer.vercel.app/
+
 ### Key Features
 
 * **Interactive Training**: Enter the correct verb forms for different pronouns.
