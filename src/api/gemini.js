@@ -3,6 +3,11 @@ import {
   getRandomTemplate,
   randomFrom,
 } from "../constants/phraseVocabulary.js";
+import {
+  safeParseJSON,
+  validatePhraseJson,
+  validateVerbInfoJson,
+} from "../utils/geminiParsing";
 
 // Единый клиент Gemini: GemeniGen (REST)
 const MODEL_NAME = "gemini-1.5-flash-latest";
@@ -58,11 +63,10 @@ function stripCodeFence(raw) {
 async function callModelJSON(prompt, options = {}) {
   const gen = { responseMimeType: "application/json", ...options };
   const { raw } = await requestModel({ prompt, generationConfig: gen });
-  const cleaned = stripCodeFence(raw);
   try {
-    const parsed = JSON.parse(cleaned);
-    return Array.isArray(parsed) ? parsed[0] : parsed;
+    return safeParseJSON(raw);
   } catch (e) {
+    console.warn("Gemini JSON parse failed", e);
     throw new Error("Не удалось распарсить JSON от Gemini");
   }
 }
@@ -145,9 +149,7 @@ export async function fetchGeminiInfo({
       Дай только валидный JSON без комментариев.
     `;
     const data = await callModelJSON(prompt);
-    if (!data?.examples || !Array.isArray(data.examples)) {
-      throw new Error("Некорректный формат данных от Gemini");
-    }
+    validateVerbInfoJson(data);
     setGeminiDataCache((prev) => ({ ...prev, [verb.infinitive]: data }));
     setter({ loading: false, data, error: null });
   } catch (error) {
@@ -283,7 +285,8 @@ export async function fetchGeminiPhrase({ setter }) {
 Дай JSON строго вида { "german": "...", "russian": "..." } без лишнего текста.`;
 
     const data = await callModelJSON(prompt);
-    setter({ loading: false, data, error: null });
+    const valid = validatePhraseJson(data);
+    setter({ loading: false, data: valid, error: null });
   } catch (error) {
     console.error("Fetch Gemini Phrase Error:", error);
     setter({
@@ -305,7 +308,8 @@ export async function fetchSimilarPhrase({ basePhrase, setter }) {
 Запрещено: повторять дословно исходную фразу; создавай новый пример той же сложности.
 Дай строго JSON { "german": "...", "russian": "..." } без лишнего текста.`;
     const data = await callModelJSON(prompt, { temperature: 0.6 });
-    if (setter) setter({ loading: false, data, error: null });
+    const valid = validatePhraseJson(data);
+    if (setter) setter({ loading: false, data: valid, error: null });
   } catch (error) {
     console.error("Fetch Similar Phrase Error:", error);
     if (setter)

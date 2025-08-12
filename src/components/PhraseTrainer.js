@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import useSpeechSynthesis from "../hooks/useSpeechSynthesis";
 import ReactMarkdown from "react-markdown";
 import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
@@ -11,26 +12,23 @@ import {
 import GeminiChatModal from "./GeminiChatModal";
 import InteractivePhrase from "./InteractivePhrase";
 import CardPhrase from "./CardPhrase";
-import {
-  Sparkles,
-  Volume2,
-  RotateCcw,
-  ChevronLeft,
-  HelpCircle,
-  X,
-} from "lucide-react";
+import { Sparkles, Volume2, ChevronLeft, HelpCircle, X } from "lucide-react";
 
 /**
  * Компонент для тренировки немецких фраз из локального файла
  */
-function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb }) {
+function PhraseTrainer({
+  onBackToMain,
+  curriculumMode = false,
+  onNavigateToVerb,
+}) {
   const [loading, setLoading] = useState(false);
   const [phrase, setPhrase] = useState(null);
   const [error, setError] = useState(null);
   const [selectedType, setSelectedType] = useState("all");
   const [generatingSimilar, setGeneratingSimilar] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const { speak, isSpeaking } = useSpeechSynthesis();
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -57,25 +55,26 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
   // Функция для извлечения немецкого инфинитива из текста
   const extractInfinitive = (text) => {
     // Убираем лишние символы и разбиваем на слова
-    const cleanText = text.replace(/[^\w\säöüÄÖÜß]/g, ' ').trim();
-    
+    const cleanText = text.replace(/[^\w\säöüÄÖÜß]/g, " ").trim();
+
     // Паттерн для поиска немецких слов (латинские буквы + умлауты + ß)
     const germanWordPattern = /\b[a-zA-ZäöüÄÖÜß]+\b/g;
     const words = cleanText.match(germanWordPattern);
-    
+
     if (!words) return null;
-    
+
     // Ищем слова, которые могут быть инфинитивами
     // Инфинитивы обычно заканчиваются на -en, -ern, -eln, -n
-    const infinitivePattern = /^.+(en|ern|eln)$|^(sein|haben|werden|gehen|kommen|tun)$/;
-    
+    const infinitivePattern =
+      /^.+(en|ern|eln)$|^(sein|haben|werden|gehen|kommen|tun)$/;
+
     // Сначала ищем точные инфинитивы
     for (const word of words) {
       if (infinitivePattern.test(word.toLowerCase()) && word.length > 2) {
         return word.toLowerCase();
       }
     }
-    
+
     // Если не нашли точного инфинитива, ищем слова заканчивающиеся на -n (но длиннее 3 букв)
     const fallbackPattern = /^.+n$/;
     for (const word of words) {
@@ -83,7 +82,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
         return word.toLowerCase();
       }
     }
-    
+
     // В крайнем случае возвращаем первое слово (если оно длиннее 2 букв)
     return words[0] && words[0].length > 2 ? words[0].toLowerCase() : null;
   };
@@ -95,19 +94,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
     }
   };
 
-  // Функция озвучивания
-  const speak = useCallback((text, lang = "de-DE") => {
-    if (!("speechSynthesis" in window)) return;
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    utterance.rate = 0.9;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, []);
+  // Функция озвучивания теперь из хука useSpeechSynthesis
 
   // Получение фразы
   const fetchPhrase = async () => {
@@ -156,7 +143,8 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
   // Автоматическая загрузка фразы при монтировании компонента
   useEffect(() => {
     fetchPhrase();
-  }, []); // Пустой массив зависимостей - выполняется только при монтировании
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [curriculumMode, selectedType]);
 
   // Обработка успех/повтор для режима программы
   const handleCurriculumRight = () => {
@@ -840,7 +828,6 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                 justifyContent: "center",
                 alignItems: "center",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-                position: "relative",
                 top: "25px",
                 left: "calc(50% - 150px - 25px)",
               }}
@@ -1214,39 +1201,50 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                     components={{
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
-                        
+
                         // Проверяем, содержит ли строка инфинитив
                         // Ищем паттерн "Инфинитив (нем.):" или похожие
                         const parent = props.node?.parent;
-                        const parentText = parent?.children?.map(child => 
-                          child.type === 'text' ? child.value : 
-                          child.children?.map(c => c.value || '').join('') || ''
-                        ).join('') || '';
-                        
-                        const isInfinitiveContext = parentText.includes('инфинитив') || 
-                                                   parentText.includes('Инфинитив');
-                        
+                        const parentText =
+                          parent?.children
+                            ?.map((child) =>
+                              child.type === "text"
+                                ? child.value
+                                : child.children
+                                    ?.map((c) => c.value || "")
+                                    .join("") || ""
+                            )
+                            .join("") || "";
+
+                        const isInfinitiveContext =
+                          parentText.includes("инфинитив") ||
+                          parentText.includes("Инфинитив");
+
                         if (isInfinitiveContext && onNavigateToVerb) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
-                              <strong 
+                              <strong
                                 {...props}
                                 style={{
-                                  color: '#2563eb',
-                                  cursor: 'pointer',
-                                  textDecoration: 'underline',
-                                  borderRadius: '3px',
-                                  padding: '2px 4px',
-                                  background: 'rgba(37, 99, 235, 0.1)',
-                                  transition: 'all 0.2s ease'
+                                  color: "#2563eb",
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                  borderRadius: "3px",
+                                  padding: "2px 4px",
+                                  background: "rgba(37, 99, 235, 0.1)",
+                                  transition: "all 0.2s ease",
                                 }}
-                                onClick={() => handleInfinitiveClick(infinitive)}
+                                onClick={() =>
+                                  handleInfinitiveClick(infinitive)
+                                }
                                 onMouseEnter={(e) => {
-                                  e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                  e.target.style.background =
+                                    "rgba(37, 99, 235, 0.2)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                  e.target.style.background =
+                                    "rgba(37, 99, 235, 0.1)";
                                 }}
                                 title={`🎯 Перейти к отработке глагола "${infinitive}"`}
                               >
@@ -1255,7 +1253,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                             );
                           }
                         }
-                        
+
                         return <strong {...props}>{children}</strong>;
                       },
                       li: ({ children, ...props }) => {
@@ -1456,39 +1454,50 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                     components={{
                       strong: ({ children, ...props }) => {
                         const text = children?.toString() || "";
-                        
+
                         // Проверяем, содержит ли строка инфинитив
                         // Ищем паттерн "Инфинитив (нем.):" или похожие
                         const parent = props.node?.parent;
-                        const parentText = parent?.children?.map(child => 
-                          child.type === 'text' ? child.value : 
-                          child.children?.map(c => c.value || '').join('') || ''
-                        ).join('') || '';
-                        
-                        const isInfinitiveContext = parentText.includes('инфинитив') || 
-                                                   parentText.includes('Инфинитив');
-                        
+                        const parentText =
+                          parent?.children
+                            ?.map((child) =>
+                              child.type === "text"
+                                ? child.value
+                                : child.children
+                                    ?.map((c) => c.value || "")
+                                    .join("") || ""
+                            )
+                            .join("") || "";
+
+                        const isInfinitiveContext =
+                          parentText.includes("инфинитив") ||
+                          parentText.includes("Инфинитив");
+
                         if (isInfinitiveContext && onNavigateToVerb) {
                           const infinitive = extractInfinitive(text);
                           if (infinitive) {
                             return (
-                              <strong 
+                              <strong
                                 {...props}
                                 style={{
-                                  color: '#2563eb',
-                                  cursor: 'pointer',
-                                  textDecoration: 'underline',
-                                  borderRadius: '3px',
-                                  padding: '2px 4px',
-                                  background: 'rgba(37, 99, 235, 0.1)',
-                                  transition: 'all 0.2s ease'
+                                  color: "#2563eb",
+                                  cursor: "pointer",
+                                  textDecoration: "underline",
+                                  borderRadius: "3px",
+                                  padding: "2px 4px",
+                                  background: "rgba(37, 99, 235, 0.1)",
+                                  transition: "all 0.2s ease",
                                 }}
-                                onClick={() => handleInfinitiveClick(infinitive)}
+                                onClick={() =>
+                                  handleInfinitiveClick(infinitive)
+                                }
                                 onMouseEnter={(e) => {
-                                  e.target.style.background = 'rgba(37, 99, 235, 0.2)';
+                                  e.target.style.background =
+                                    "rgba(37, 99, 235, 0.2)";
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.target.style.background = 'rgba(37, 99, 235, 0.1)';
+                                  e.target.style.background =
+                                    "rgba(37, 99, 235, 0.1)";
                                 }}
                                 title={`🎯 Перейти к отработке глагола "${infinitive}"`}
                               >
@@ -1497,7 +1506,7 @@ function PhraseTrainer({ onBackToMain, curriculumMode = false, onNavigateToVerb 
                             );
                           }
                         }
-                        
+
                         return <strong {...props}>{children}</strong>;
                       },
                       li: ({ children, ...props }) => {

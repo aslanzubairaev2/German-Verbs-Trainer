@@ -41,6 +41,7 @@ import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
 import StartScreen from "./components/StartScreen";
 import PracticeBox from "./components/PracticeBox";
 import PracticeCompletionModal from "./components/PracticeCompletionModal";
+import useSpeechSynthesis from "./hooks/useSpeechSynthesis";
 import PhraseTrainer from "./components/PhraseTrainer";
 import InteractivePhrase from "./components/InteractivePhrase";
 
@@ -82,8 +83,8 @@ function GermanVerbsApp() {
   const [userAnswer, setUserAnswer] = useState("");
   const [currentPronoun, setCurrentPronoun] = useState(0);
   const [feedback, setFeedback] = useState("");
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const [audioReady, setAudioReady] = useState(false);
+  const { speak, isSpeaking } = useSpeechSynthesis({ enabled: audioReady });
   const [showSettings, setShowSettings] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);
   const [showVerbList, setShowVerbList] = useState(false);
@@ -174,10 +175,12 @@ function GermanVerbsApp() {
   // Функция для навигации к конкретному глаголу из PhraseTrainer
   const navigateToVerb = useCallback((infinitive) => {
     // Найти индекс глагола по инфинитиву
-    const verbIndex = allVerbs.findIndex(verb => verb.infinitive === infinitive);
+    const verbIndex = allVerbs.findIndex(
+      (verb) => verb.infinitive === infinitive
+    );
     if (verbIndex >= 0) {
       // Обновить состояние с новым индексом глагола
-      setAppState(prev => ({ ...prev, lastVerbIndex: verbIndex }));
+      setAppState((prev) => ({ ...prev, lastVerbIndex: verbIndex }));
       // Переключиться обратно в режим изучения глаголов
       setShowPhraseTrainer(false);
       setAudioReady(true);
@@ -205,20 +208,7 @@ function GermanVerbsApp() {
   }, [practiceMode]);
 
   // --- API & AUDIO ---
-  const speak = useCallback(
-    (text, lang = "de-DE") => {
-      if (!audioReady || !("speechSynthesis" in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 0.9;
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-    },
-    [audioReady]
-  );
+  // speak берём из хука useSpeechSynthesis
 
   // --- LOGIC ---
   const speakFullPhrase = (pronounIndex) => {
@@ -1109,8 +1099,8 @@ function GermanVerbsApp() {
                     animation: scaleIn 0.3s ease;
                 }
                 .modal-close-btn {
-                    position: absolute; top: 0.5rem; right: 1rem; padding: 1rem;
-                    color: var(--gray-500); z-index: 10;
+                    // position: absolute; top: 0.5rem; right: 1rem; padding: 1rem;
+                    // color: var(--gray-500); z-index: 10;
                 }
                 .modal-close-btn:hover { color: var(--gray-800);  border-radius: 50%;}
                 .modal-title { margin-top: 0; font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
