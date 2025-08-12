@@ -11,7 +11,7 @@ import React from "react";
  * - Описание стало короче и меньше по размеру.
  * - Шрифт заголовка и описания более нейтральный, без избыточной жирности.
  */
-function StartScreen({ onStart, onStartPhrases, onStartCurriculum }) {
+function StartScreen({ onStart, onStartCurriculum }) {
   return (
     <div className="start-screen">
       <div className="cards-container">
@@ -20,14 +20,6 @@ function StartScreen({ onStart, onStartPhrases, onStartCurriculum }) {
           <h2>Отработка глаголов</h2>
           <p>Учите спряжения и формы немецких глаголов просто и удобно.</p>
           <button className="btn-verbs" onClick={onStart}>
-            Начать
-          </button>
-        </div>
-        {/* Карточка: Отработка фраз */}
-        <div className="start-card card-phrases">
-          <h2>Отработка фраз</h2>
-          <p>Тренируйте полезные немецкие фразы для повседневного общения.</p>
-          <button className="btn-phrases" onClick={onStartPhrases}>
             Начать
           </button>
         </div>

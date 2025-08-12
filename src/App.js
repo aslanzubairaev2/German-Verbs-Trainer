@@ -463,10 +463,6 @@ function GermanVerbsApp() {
     return (
       <StartScreen
         onStart={() => setAudioReady(true)}
-        onStartPhrases={() => {
-          setCurriculumMode(false);
-          setShowPhraseTrainer(true);
-        }}
         onStartCurriculum={() => {
           setCurriculumMode(true);
           setShowPhraseTrainer(true);
