@@ -82,15 +82,32 @@ const GeminiInfoModal = ({
     geminiInfo.data?.examples &&
     Array.isArray(geminiInfo.data.examples)
   ) {
+    const stripLeadingPronoun = (text, pronoun) => {
+      if (!text || !pronoun) return text?.trim() || "";
+      const t = text.trim();
+      const p = pronoun.toLowerCase();
+      // Убираем ведущие местоимения (например, "Ich", "du", "Er/Sie/Es")
+      const lowered = t.toLowerCase();
+      if (lowered.startsWith(p + " ")) return t.slice(pronoun.length).trim();
+      // Частые вариации er/sie/es → уберём, если совпадает любой из них
+      if (p.includes("/")) {
+        for (const alt of p.split("/")) {
+          if (lowered.startsWith(alt + " ")) return t.slice(alt.length).trim();
+        }
+      }
+      return t;
+    };
     content = (
       <div className="gemini-data">
         <ul className="accordion-list">
           {geminiInfo.data.examples.map((ex, i) => {
             if (!ex || !ex.german_initial || !ex.russian) return null;
             const isActive = activeIndex === i;
-            const cleanInitial = ex.german_initial
+            let cleanInitial = ex.german_initial
               .replace(/<b>/g, "")
               .replace(/<\/b>/g, "");
+            // Удаляем дублирующееся местоимение, если модель его добавила в german_initial
+            cleanInitial = stripLeadingPronoun(cleanInitial, ex.pronoun);
             return (
               <li key={i} className="accordion-item">
                 <div
@@ -103,7 +120,7 @@ const GeminiInfoModal = ({
                       dangerouslySetInnerHTML={{
                         __html: `<strong class="pronoun-tag">${
                           ex.pronoun
-                        }</strong>&nbsp;${ex.german_initial.trim()}`,
+                        }</strong>&nbsp;${cleanInitial.trim()}`,
                       }}
                     />
                     <p className="example-russian">{ex.russian}</p>
@@ -112,7 +129,17 @@ const GeminiInfoModal = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        speak(`${ex.pronoun} ${cleanInitial}`);
+                        // Если предложение уже начинается с местоимения — не дублируем его
+                        const speaks = ex.german_initial
+                          .replace(/<b>/g, "")
+                          .replace(/<\/b>/g, "")
+                          .trim();
+                        const normalized = speaks.toLowerCase();
+                        const p = (ex.pronoun || "").toLowerCase();
+                        const say = normalized.startsWith(p + " ")
+                          ? speaks
+                          : `${ex.pronoun} ${cleanInitial}`;
+                        speak(say);
                       }}
                       disabled={isSpeaking}
                       className="speak-btn-small"

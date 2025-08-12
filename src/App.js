@@ -717,18 +717,18 @@ function GermanVerbsApp() {
 
       <div className="fab-container">
         <button
-          onClick={() => speak(currentVerb.infinitive)}
-          disabled={isSpeaking}
-          className="fab-button speak-fab"
-        >
-          <Volume2 />
-        </button>
-        <button
           onClick={() => setShowGeminiModal(true)}
           title="Узнать больше"
           className="fab-button gemini-fab"
         >
           <Sparkles />
+        </button>
+        <button
+          onClick={() => speak(currentVerb.infinitive)}
+          disabled={isSpeaking}
+          className="fab-button speak-fab"
+        >
+          <Volume2 />
         </button>
         <button
           onClick={handleVoicePickVerb}
@@ -1091,7 +1091,7 @@ function GermanVerbsApp() {
                 .hint-box { padding: 0.75rem 1rem; background-color: var(--yellow-100); border-radius: 0.5rem; display: inline-block; font-weight: 500; }
 
                 /* --- Плавающие кнопки действий (FAB, GermanVerbsApp) --- */
-                .fab-container { position: fixed; bottom: 1.5rem; right: calc(50% - 61px); z-index: 40; display: flex; flex-direction: row; gap: 10px; }
+                .fab-container { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 40; display: flex; flex-direction: row; gap: 10px; }
                 .fab-button {
                     width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center;
                     justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15); color: var(--white);

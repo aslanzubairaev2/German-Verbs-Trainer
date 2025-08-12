@@ -216,8 +216,10 @@ const VerbListModal = ({
         >
           <X />
         </button>
-        <div className="verb-list-header">
-          <h3 className="modal-title">Список глаголов</h3>
+        <div className="verb-list-header" style={{ paddingBottom: 8 }}>
+          <h3 className="modal-title" style={{ marginBottom: 8 }}>
+            Список глаголов
+          </h3>
           {/* Ряд поиска */}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {/* Обёртка для инпута с иконками */}
@@ -303,6 +305,7 @@ const VerbListModal = ({
                 justifyContent: "center",
                 background: listening ? "#fee2e2" : "#f8fafc",
                 color: listening ? "#b91c1c" : "#334155",
+                marginRight: 6,
               }}
             >
               {listening ? <MicOff size={16} /> : <Mic size={16} />}
