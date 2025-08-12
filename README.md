@@ -73,3 +73,32 @@ The project has great potential for further development. Possible future feature
 * Categorizing verbs by difficulty level (A1, A2, B1).
 * A user account system to save progress.
 * Adding audio pronunciation for the verbs.
+
+
+---
+
+### This Project is Looking for Volunteers!
+
+Hello! I'm the original creator of this German Verbs Trainer. I started this project as a tool to help myself and others learn German more effectively.
+
+As I am not a professional developer and can no longer dedicate the necessary resources to maintain or expand this project, I am looking for enthusiastic volunteers to take it over.
+
+**My goal is to find individuals or a team who can continue its development and keep this useful tool alive and growing for the community.**
+
+#### How You Can Help
+
+Any contribution, big or small, is highly appreciated! Here are a few ideas:
+* **Bug Fixes:** Find and fix bugs. You can check the [Issues](https://github.com/aslanzubairaev2/German-Verbs-Trainer/issues) tab for any reported problems.
+* **New Features:** Implement new functionalities. Some ideas include adding more verb tenses, creating a practice mode for noun genders (der, die, das), or integrating audio for pronunciation.
+* **Code Improvement:** Refactor the existing code, update dependencies, or improve the UI/UX.
+* **Documentation:** Help improve the setup instructions and project documentation for future contributors.
+
+#### How to Get Started
+
+1.  Check the open tasks in the [**Issues**](https://github.com/aslanzubairaev2/German-Verbs-Trainer/issues) tab. Anything tagged with `good first issue` or `help wanted` is a great place to start.
+2.  If you have your own idea for an improvement, please create a new issue to discuss it first.
+3.  For guidelines on the development process, please see the [**CONTRIBUTING.md**](CONTRIBUTING.md) file.
+
+I am more than willing to grant full repository rights to a reliable and active maintainer (or group of maintainers). Thank you for considering helping out!
+
+---
