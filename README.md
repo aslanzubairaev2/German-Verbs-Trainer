@@ -4,11 +4,11 @@
 
 This is an interactive web application designed to help you learn and practice the conjugation of German verbs in the present tense (Präsens). It's perfect for both beginners and intermediate learners of the German language.
 
-## ✨ About The Project
+## About The Project
 
 Learning verb conjugations is one of the most fundamental yet challenging parts of mastering the German language. This project was created to make this process more engaging and effective. Instead of monotonously memorizing tables, you can practice in an interactive format and get instant feedback.
 
-### 🎯 Key Features
+### Key Features
 
 * **Interactive Training**: Enter the correct verb forms for different pronouns.
 * **Instant Feedback**: The system immediately highlights correct and incorrect answers.
@@ -18,7 +18,7 @@ Learning verb conjugations is one of the most fundamental yet challenging parts 
 
 ---
 
-## 🚀 Tech Stack
+## Tech Stack
 
 The project is built with modern web technologies to ensure high performance and a great development experience.
 
@@ -65,7 +65,7 @@ After this, open your browser and go to [http://localhost:3000](http://localhost
 
 ---
 
-## 🤝 Future Improvements
+## Future Improvements
 
 The project has great potential for further development. Possible future features include:
 
