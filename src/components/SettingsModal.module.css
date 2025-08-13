@@ -1,6 +1,35 @@
+.modalOverlay {
+    position: fixed; inset: 0; background-color: var(--black-t60);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; padding: 0.5rem; animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.modalContent {
+    background-color: var(--white); border-radius: 0.75rem; max-width: 512px; width: 100%;
+    position: relative; display: flex; flex-direction: column; max-height: 90vh;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    animation: scaleIn 0.3s ease;
+}
+
+@keyframes scaleIn { from { transform: scale(0.95); } to { transform: scale(1); } }
+
+.modalCloseBtn {
+    position: absolute; top: 0.5rem; right: 1rem; padding: 1rem;
+    color: var(--gray-500); z-index: 10;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.modalCloseBtn:hover { color: var(--gray-800);  border-radius: 50%;}
+
 .settings-tabs { display: flex; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem 0 1.5rem; }
 .settings-tabs button {
     padding: 0.5rem 1rem; border-bottom: 2px solid transparent;
+    border: none;
+    background: transparent;
+    cursor: pointer;
     display: flex; align-items: center; gap: 0.5rem;
     margin-bottom: -1px; color: var(--gray-500);
 }

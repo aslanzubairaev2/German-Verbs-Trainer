@@ -1,14 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Volume2, LoaderCircle } from "lucide-react";
-
-const pronouns = [
-  { german: "ich", russian: "я", base: "ich" },
-  { german: "du", russian: "ты", base: "du" },
-  { german: "er/sie/es", russian: "он/она/оно", base: "er" },
-  { german: "wir", russian: "мы", base: "wir" },
-  { german: "ihr", russian: "вы", base: "ihr" },
-  { german: "sie/Sie", russian: "они/Вы", base: "sie" },
-];
+import { pronouns } from "../constants";
 
 const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
   const [formsInfo, setFormsInfo] = useState({
@@ -65,31 +57,31 @@ const VerbFormsDisplay = ({ verb, speak, isSpeaking, fetchVerbForms }) => {
     content = (
       <div className="loader-container">
         <LoaderCircle className="loader" />
-        <p>Загрузка форм...</p>
+        <p>Loading forms...</p>
       </div>
     );
   } else if (formsInfo.error) {
     content = <div className="error-box">{formsInfo.error}</div>;
   } else if (!formsInfo.data || !formsInfo.data.forms) {
     content = (
-      <div className="error-box">Не удалось загрузить формы глагола.</div>
+      <div className="error-box">Failed to load verb forms.</div>
     );
   } else {
     const { present, past, future } = formsInfo.data.forms;
     const tenses = [
-      { key: "present", name: "Наст.", data: present },
-      { key: "past", name: "Прош.", data: past },
-      { key: "future", name: "Будущ.", data: future },
+      { key: "present", name: "Pres.", data: present },
+      { key: "past", name: "Past", data: past },
+      { key: "future", name: "Fut.", data: future },
     ];
     content = (
       <div className="verb-forms-grid-table-wrapper">
         <table className="verb-forms-grid-table">
           <thead>
             <tr>
-              <th className="sticky-col">Время</th>
-              <th>Утверждение (+)</th>
-              <th>Отрицание (-)</th>
-              <th>Вопрос (?)</th>
+              <th className="sticky-col">Tense</th>
+              <th>Affirmative (+)</th>
+              <th>Negative (-)</th>
+              <th>Question (?)</th>
             </tr>
           </thead>
           <tbody>

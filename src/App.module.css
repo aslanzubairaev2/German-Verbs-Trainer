@@ -1,0 +1,424 @@
+/* --- Стартовый экран (StartScreen) --- */
+.startScreen {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(to bottom right, var(--blue-100), var(--indigo-100));
+}
+.startBox {
+    text-align: center; padding: 2rem; background-color: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(4px); border-radius: 1rem; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    max-width: 400px; margin: 1rem;
+}
+.startBox h1 { font-size: 2rem; color: var(--gray-800); margin-bottom: 1rem; }
+.startBox p { color: var(--gray-500); margin-bottom: 2rem; }
+.startBox button {
+    padding: 0.75rem 2rem; background-color: var(--blue-600); color: var(--white);
+    border-radius: 0.75rem; font-size: 1.125rem; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+.startBox button:hover { background-color: var(--blue-700); transform: scale(1.05); }
+
+/* --- Основной макет приложения (GermanVerbsApp) --- */
+.appContainer { max-width: 896px; margin: 0 auto; min-height: 100vh; }
+.mainCard {
+    background-color: var(--white);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Fallback for older browsers */
+    height: 100dvh; /* Dynamic viewport height */
+    box-sizing: border-box;
+}
+@media (min-width: 640px) {
+    .appContainer { padding: 1rem; }
+    .mainCard {
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        height: calc(100vh - 2rem);
+        height: calc(100dvh - 2rem);
+    }
+}
+
+.mainCardHeader {
+    flex-shrink: 0;
+}
+
+.mainCardBody {
+    flex-grow: 1;
+    /* overflow-y: auto; */
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-200) transparent;
+}
+.mainCardBody::-webkit-scrollbar { width: 6px; }
+.mainCardBody::-webkit-scrollbar-track { background: transparent; }
+.mainCardBody::-webkit-scrollbar-thumb { background-color: var(--gray-200); border-radius: 10px; }
+
+/* --- Компонент VerbFormsDisplay (UI/UX Overhaul) --- */
+.verbFormsContainer {
+    display: flex;
+    flex-direction: column;
+}
+.tableContentWrapper {
+    min-height: 160px; /* Prevents layout jump */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.verbFormsGridTableWrapper {
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    overflow-x: auto;
+    border: none;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE и Edge */
+}
+.verbFormsGridTableWrapper::-webkit-scrollbar {
+    display: none; /* Safari и Chrome */
+}
+
+.verbFormsGridTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.verbFormsGridTable td {
+    border: 1px solid #fff;
+    padding: 0.85rem 0.75rem;
+    background-color: #fff;
+    white-space: nowrap;
+}
+.verbFormsGridTable th {
+    background-color: var(--gray-100);
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--gray-900);
+    text-align: center;
+    border: none;
+    padding: 0.85rem 0.75rem;
+    white-space: nowrap;
+}
+.verbFormsGridTable th:first-child,
+.verbFormsGridTable td:first-child {
+    border-left: none;
+}
+.verbFormsGridTable tr:last-child td {
+    border-bottom: none;
+}
+.verbFormsGridTable th:last-child,
+.verbFormsGridTable td:last-child {
+    border-right: none;
+}
+.verbFormsGridTable b {
+    color: var(--blue-600);
+    font-weight: 700;
+}
+.verbFormsGridTable th.stickyCol,
+.verbFormsGridTable td.stickyCol {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: var(--gray-100);
+}
+.verbFormsGridTable td.stickyCol {
+    font-weight: 500;
+    color: var(--gray-600);
+    background-color: var(--white);
+    z-index: 1;
+}
+.pronounSelectorWrapper {
+    position: relative;
+}
+.pronounSelectorWrapper::before, .pronounSelectorWrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 20px;
+    pointer-events: none;
+    z-index: 2;
+}
+.pronounSelectorWrapper::before {
+    left: 0;
+    background: linear-gradient(to right, var(--white), transparent);
+}
+.pronounSelectorWrapper::after {
+    right: 0;
+    background: linear-gradient(to left, var(--white), transparent);
+}
+
+.pronounSelectorContainer {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding: 0.5rem 1rem;
+    scrollbar-width: none; /* Firefox */
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+}
+.pronounSelectorContainer::-webkit-scrollbar {
+    display: none; /* Safari and Chrome */
+}
+.pronounSelectorBtn {
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    background-color: var(--gray-100);
+    color: var(--gray-800);
+    flex-shrink: 0;
+    border: 2px solid transparent;
+}
+.pronounSelectorBtn.active {
+    background-color: var(--blue-100);
+    color: var(--blue-700);
+    font-weight: 700;
+    border-color: var(--blue-600);
+}
+
+@media (max-width: 640px) {
+    .verbFormsContainer {
+        margin: 0 -1rem; /* Edge-to-edge */
+    }
+    .verbFormsGridTableWrapper {
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
+    }
+    .pronounSelectorWrapper::before {
+        background: linear-gradient(to right, var(--white), transparent);
+    }
+    .pronounSelectorWrapper::after {
+        background: linear-gradient(to left, var(--white), transparent);
+    }
+}
+
+/* --- Практика (Practice Box, внутри GermanVerbsApp) --- */
+.practiceBox { background-color: var(--green-50); border-radius: 0.5rem; padding: 1.5rem; }
+.practicePrompt { text-align: center; margin-bottom: 1.5rem; }
+.practiceInputGroup { display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.practiceInputGroup span { font-size: 1.5rem; font-weight: 600; color: var(--gray-800); }
+.practiceInputGroup input {
+    font-size: 1.125rem; font-weight: 500; color: var(--gray-800); background-color: transparent;
+    border: none; border-bottom: 2px solid var(--gray-200); border-radius: 0;
+    width: 150px; padding: 0.5rem 0.25rem; text-align: center; transition: border-color 0.3s ease;
+}
+.practiceInputGroup input:focus { outline: none; border-bottom-color: var(--green-500); }
+.practiceInputGroup button {
+    width: 44px; height: 44px; background-color: var(--green-500); color: var(--white);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+.practiceInputGroup button:hover { background-color: var(--green-600); }
+.practiceInputGroup button:disabled { background-color: var(--gray-200); }
+.feedbackBox { text-align: center; padding: 0.75rem; margin-top: 1.5rem; border-radius: 0.5rem; }
+.feedbackBox.correct { background-color: var(--green-100); color: var(--green-800); }
+.feedbackBox.incorrect { background-color: var(--red-100); color: var(--red-700); }
+.hintContainer { text-align: center; margin-top: 1.5rem; min-height: 42px; display: flex; align-items: center; justify-content: center; }
+.hintBtn { color: var(--gray-400); padding: 0.5rem; border-radius: 50%; }
+.hintBtn:hover { color: var(--amber-400); background-color: #fffbeb; }
+.hintBox { padding: 0.75rem 1rem; background-color: var(--yellow-100); border-radius: 0.5rem; display: inline-block; font-weight: 500; }
+
+/* --- Модальные окна и тосты (GeminiInfoModal, SettingsModal, VerbListModal, LevelUpToast) --- */
+.modalOverlay {
+    position: fixed; inset: 0; background-color: var(--black-t60);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; padding: 0.5rem; animation: fadeIn 0.3s ease;
+}
+.modalContent {
+    background-color: var(--white); border-radius: 0.75rem; max-width: 512px; width: 100%;
+    position: relative; display: flex; flex-direction: column; max-height: 90vh;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    animation: scaleIn 0.3s ease;
+}
+.modalCloseBtn {
+    /* position: absolute; top: 0.5rem; right: 1rem; padding: 1rem; */
+    /* color: var(--gray-500); z-index: 10; */
+}
+.modalCloseBtn:hover { color: var(--gray-800);  border-radius: 50%;}
+.modalTitle { margin-top: 0; font-size: 1.5rem; font-weight: 700; padding: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: capitalize; margin-bottom: 0.1rem; }
+.verbInfoSubtitle { font-size: 0.8rem; color: var(--gray-500); margin: 0 0 0 2rem; }
+.iconPurple { color: var(--purple-500); }
+.modalBodyContainer { overflow-y: auto; padding-bottom: 5rem; }
+
+/* Скрываем скроллбар для всех элементов, чтобы он не отображался визуально */
+:global(::-webkit-scrollbar) {
+    width: 0px;
+    background: transparent; /* делаем фон прозрачным */
+}
+/* Для Firefox */
+:global(*) {
+    scrollbar-width: none; /* полностью скрываем скроллбар */
+    -ms-overflow-style: none; /* для IE и Edge */
+}
+
+.verbsListModalFooter {
+  height: 20px;
+  background-color: red;
+}
+
+.loaderContainer {display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; color: var(--gray-500); }
+.loader { width: 3rem; height: 3rem; color: var(--blue-600); animation: spin 1s linear infinite; }
+.loaderSmall { width: 1rem; height: 1rem; color: var(--white); animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.geminiModalHeader { display: flex; justify-content: space-between; align-items: flex-start; padding: 1rem 1rem 0.5rem 1.5rem; flex-shrink: 0; }
+.modalFooter {
+    padding: 1rem;
+    background-color: var(--white);
+    border-top: 1px solid var(--gray-200);
+    flex-shrink: 0;
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+.regenerateBtnFooter {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background-color: var(--blue-600);
+    color: var(--white);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.regenerateBtnFooter:hover { background-color: var(--blue-700); }
+.regenerateBtnFooter:disabled { background-color: var(--gray-400); }
+
+/* --- Вкладки настроек и инфо (SettingsModal) --- */
+.settingsTabs { display: flex; border-bottom: 1px solid var(--gray-200); padding: 1rem 1.5rem 0 1.5rem; }
+.settingsTabs button {
+    padding: 0.5rem 1rem; border-bottom: 2px solid transparent;
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: -1px; color: var(--gray-500);
+}
+.settingsTabs button.active { border-bottom-color: var(--blue-600); color: var(--blue-600); }
+.infoTab { font-size: 0.95rem; line-height: 1.6; }
+.infoTab h4, .infoTab h5 { margin-top: 1.5rem; margin-bottom: 0.5rem; }
+.infoTab ul { padding-left: 1.5rem; }
+.infoTab li { margin-bottom: 0.5rem; }
+.infoTab table { width: 100%; margin-top: 1rem; border-collapse: collapse; }
+.infoTab td { padding: 0.5rem; border: 1px solid var(--gray-200); }
+.infoTab td:first-child { font-weight: 600; }
+
+/* --- Модальное окно списка глаголов (VerbListModal) --- */
+.verbListModal .modalBodyContainer { width: 95vw; padding: 0; background-color: white; max-height: 83dvh; border-radius: 0 0 20px 25px; }
+.verbListHeader { border-bottom: 1px solid var(--gray-200); background-color: white; border-radius: 20px 20px 0 0;}
+.verbListHeader .modalTitle { text-transform: none; }
+.searchBar { position: relative; }
+.searchBar svg { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--gray-400); }
+.searchBar input {
+    width: 100%; box-sizing: border-box;
+    border: 1px solid var(--gray-200); border-radius: 0.5rem; font-size: 1rem;
+}
+
+.searchBar input::placeholder {
+    color: rgb(211, 211, 211);
+    opacity: 1;
+}
+
+.searchBar input:focus { outline: none; border-color: var(--blue-600); box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+.levelHeader {
+    margin: 0;
+    padding: 10px 15px;
+    font-size: 0.875rem; font-weight: 600; color: var(--gray-500);
+    font-weight: 700;
+    position: sticky; top: 0px;
+    background-color: var(--white);
+    background-color:rgb(246, 246, 246);
+}
+.verbList { list-style: none; padding: 0; margin: 0; }
+.verbList li { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; border-radius: 0.375rem; cursor: pointer; }
+.verbList li:hover { background-color: var(--blue-50); }
+.verbTranslation { color: var(--gray-500); font-size: 0.875rem; margin-left: 0.5rem; }
+.checkMark { color: var(--green-500); }
+.noResults { text-align: center; padding: 2rem; color: var(--gray-500); }
+.errorBox { background-color: var(--red-100); color: var(--red-700); padding: 1rem; border-radius: 0.5rem; text-align: center;}
+
+/* --- Сброс прогресса (SettingsModal) --- */
+.resetSection { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); }
+.resetSection h4 { font-weight: 600; color: var(--red-700); }
+.resetSection p { font-size: 0.875rem; color: var(--gray-500); }
+.resetBtnInitial, .resetBtnConfirm { width: 100%; padding: 0.75rem; border-radius: 0.5rem; color: var(--white); font-weight: 600; margin-top: 0.5rem; }
+.resetBtnInitial { background-color: var(--red-500); }
+.resetBtnInitial:hover { background-color: var(--red-700); }
+.resetConfirm { border: 1px solid var(--red-100); background-color: #fff5f5; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; text-align: center; }
+.resetConfirm p { color: var(--red-700); font-weight: 600; margin: 0 0 1rem 0; }
+.resetConfirm button { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; }
+.resetBtnCancel { background-color: var(--gray-200); }
+.resetBtnCancel:hover { background-color: #d1d5db; }
+.resetBtnConfirm { background-color: var(--red-500); color: var(--white); margin-left: 0.5rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+.resetBtnConfirm:hover { background-color: var(--red-700); }
+
+/* --- Тост повышения уровня (LevelUpToast) --- */
+.levelUpToast {
+    position: fixed; top: 1.25rem; right: 1.25rem; background-color: var(--green-500); color: var(--white);
+    padding: 1rem; border-radius: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    z-index: 100; display: flex; align-items: center; gap: 0.75rem;
+    animation: bounce-in 0.5s ease-out;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleIn { from { transform: scale(0.95); } to { transform: scale(1); } }
+@keyframes bounce-in { 0% { opacity: 0; transform: scale(0.5) translateY(-50px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+
+/* --- Аккордеон в модальном окне (GeminiInfoModal) --- */
+.accordionList { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.accordionItem { background-color: var(--blue-50); border-radius: 0.5rem; overflow: hidden; border: 1px solid var(--gray-200); }
+.accordionHeader { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; cursor: pointer; user-select: none; }
+.accordionHeader:hover { background-color: var(--blue-100); }
+.accordionTitle .exampleGerman { font-weight: 500; color: var(--gray-800); margin: 0; font-size: 0.9rem; }
+.pronounTag { background-color: var(--blue-100); color: var(--blue-700); padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.8rem; margin-right: 0.5rem; }
+.accordionTitle .exampleRussian { font-size: 0.8rem; font-style: italic; color: var(--gray-500); margin: 0.1rem 0 0; }
+.accordionControls { display: flex; align-items: center; gap: 0.25rem; }
+.speakBtnSmall { padding: 0.25rem; color: var(--gray-500); border-radius: 50%; }
+.speakBtnSmall:hover { background-color: rgba(0,0,0,0.05); }
+.accordionIcon { transition: transform 0.3s ease-in-out; color: var(--gray-500); }
+.accordionIcon.active { transform: rotate(180deg); }
+.accordionContent { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; padding: 0 0.2rem; }
+.accordionContent.active { max-height: 500px; padding: 0.2rem; }
+.exampleGerman b { color: var(--blue-600); font-weight: 700; }
+
+/* --- Компактная таблица спряжения (ConjugationTable) --- */
+.conjugationTableWrapper {
+    background-color: var(--white);
+    border-radius: 0.375rem;
+    margin-top: 0.25rem;
+    overflow-x: auto;
+}
+.conjugationTableWrapper::-webkit-scrollbar { height: 4px; }
+.conjugationTableWrapper::-webkit-scrollbar-track { background: var(--gray-100); }
+.conjugationTableWrapper::-webkit-scrollbar-thumb { background: var(--blue-100); border-radius: 4px; }
+.conjugationTableWrapper::-webkit-scrollbar-thumb:hover { background: var(--blue-600); }
+
+.conjugationTable { width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap; }
+.conjugationTable th, .conjugationTable td {
+    border: none;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    vertical-align: middle;
+}
+.conjugationTable th {
+    background-color: var(--gray-50);
+    font-weight: 600;
+    text-align: center;
+    color: var(--gray-900);
+}
+.conjugationTable th:first-child,
+.conjugationTable td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background-color: var(--gray-50);
+}
+.conjugationTable td:first-child {
+    font-weight: 500;
+    color: var(--gray-600);
+    background-color: var(--white);
+    z-index: 1;
+}
+.conjugationTable td b { color: var(--blue-600); font-weight: 700; }
+.tableCellContent { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.speakBtnTiny { color: var(--gray-400); padding: 0.1rem; border-radius: 50%; flex-shrink: 0; }
+.speakBtnTiny:hover { color: var(--gray-800); background-color: var(--gray-100); }

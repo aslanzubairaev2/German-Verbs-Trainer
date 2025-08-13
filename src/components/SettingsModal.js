@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { X, Settings, HelpCircle, Volume2, AlertTriangle } from "lucide-react";
+import styles from './SettingsModal.module.css';
 
 const SettingsModal = ({
   show,
@@ -10,6 +11,7 @@ const SettingsModal = ({
 }) => {
   const [activeTab, setActiveTab] = useState("settings");
   const [confirmReset, setConfirmReset] = useState(false);
+  const cx = (...args) => args.filter(Boolean).join(' ');
 
   const handleReset = () => {
     onResetProgress();
@@ -19,62 +21,62 @@ const SettingsModal = ({
   if (!show) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="modal-close-btn">
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className={styles.modalCloseBtn}>
           <X />
         </button>
-        <div className="settings-tabs">
+        <div className={styles.settingsTabs}>
           <button
-            className={activeTab === "settings" ? "active" : ""}
+            className={cx(activeTab === "settings" && styles.active)}
             onClick={() => setActiveTab("settings")}
           >
-            <Settings /> Настройки
+            <Settings /> Settings
           </button>
           <button
-            className={activeTab === "info" ? "active" : ""}
+            className={cx(activeTab === "info" && styles.active)}
             onClick={() => setActiveTab("info")}
           >
-            <HelpCircle /> Справка
+            <HelpCircle /> Help
           </button>
         </div>
-        <div className="modal-body-container">
+        <div className={styles.modalBodyContainer}>
           {activeTab === "settings" && (
             <>
-              <div className="settings-row">
-                <span>Автоозвучивание</span>
+              <div className={styles.settingsRow}>
+                <span>Auto-play audio</span>
                 <button
                   onClick={() => setAutoPlay(!autoPlay)}
-                  className={`toggle-btn ${autoPlay ? "on" : "off"}`}
+                  className={cx(styles.toggleBtn, autoPlay ? styles.on : styles.off)}
                 >
                   {autoPlay ? <Volume2 /> : <X />}
-                  <span>{autoPlay ? "Вкл" : "Выкл"}</span>
+                  <span>{autoPlay ? "On" : "Off"}</span>
                 </button>
               </div>
-              <div className="reset-section">
-                <h4>Сброс прогресса</h4>
+              <div className={styles.resetSection}>
+                <h4>Reset Progress</h4>
                 <p>
-                  Это действие удалит все данные о пройденных глаголах и
-                  открытых уровнях.
+                  This action will delete all data about completed verbs and
+                  unlocked levels.
                 </p>
                 {!confirmReset ? (
                   <button
-                    className="reset-btn-initial"
+                    className={styles.resetBtnInitial}
                     onClick={() => setConfirmReset(true)}
                   >
-                    Сбросить весь прогресс
+                    Reset all progress
                   </button>
                 ) : (
-                  <div className="reset-confirm">
-                    <p>Вы уверены?</p>
+                  <div className={styles.resetConfirm}>
+                    <p>Are you sure?</p>
                     <button
-                      className="reset-btn-cancel"
+                      className={styles.resetBtnCancel}
                       onClick={() => setConfirmReset(false)}
                     >
-                      Отмена
+                      Cancel
                     </button>
-                    <button className="reset-btn-confirm" onClick={handleReset}>
-                      <AlertTriangle size={16} /> Да, сбросить
+                    <button className={styles.resetBtnConfirm} onClick={handleReset}>
+                      <AlertTriangle size={16} /> Yes, reset
                     </button>
                   </div>
                 )}
@@ -82,74 +84,74 @@ const SettingsModal = ({
             </>
           )}
           {activeTab === "info" && (
-            <div className="info-tab">
-              <h4>Основы спряжения глаголов</h4>
+            <div className={styles.infoTab}>
+              <h4>Basics of Verb Conjugation</h4>
               <p>
-                В немецком, как и в русском, глаголы меняют свою форму в
-                зависимости от того, кто выполняет действие (лицо) и когда
-                (время). Этот процесс называется <strong>спряжением</strong>.
+                In German, like in English, verbs change their form
+                depending on who is performing the action (person) and when
+                (tense). This process is called <strong>conjugation</strong>.
               </p>
-              <h5>Типы глаголов:</h5>
+              <h5>Verb Types:</h5>
               <ul>
                 <li>
-                  <strong>Слабые (правильные):</strong> Самая простая группа.
-                  Они спрягаются по четким правилам, добавляя стандартные
-                  окончания к основе глагола. Пример:{" "}
+                  <strong>Weak (regular):</strong> The simplest group.
+                  They are conjugated according to clear rules, adding standard
+                  endings to the verb stem. Example:{" "}
                   <em>
-                    machen (делать) -&gt; ich mach<strong>e</strong>, du mach
+                    machen (to do) -&gt; ich mach<strong>e</strong>, du mach
                     <strong>st</strong>
                   </em>
                   .
                 </li>
                 <li>
-                  <strong>Сильные (неправильные):</strong> Эти глаголы "не
-                  подчиняются" общим правилам. При спряжении у них часто
-                  меняется корневая гласная. Пример:{" "}
+                  <strong>Strong (irregular):</strong> These verbs do not
+                  follow the general rules. Their root vowel often
+                  changes during conjugation. Example:{" "}
                   <em>
-                    sprechen (говорить) -&gt; ich spreche, du spr
+                    sprechen (to speak) -&gt; ich spreche, du spr
                     <strong>i</strong>chst
                   </em>
-                  . Их формы нужно запоминать.
+                  . Their forms need to be memorized.
                 </li>
                 <li>
-                  <strong>Смешанные:</strong> Редкая группа, которая ведет себя
-                  как слабые глаголы (берет их окончания), но при этом меняет
-                  корневую гласную, как сильные. Пример:{" "}
-                  <em>denken (думать) -&gt; ich dachte (в прошлом времени)</em>.
+                  <strong>Mixed:</strong> A rare group that behaves
+                  like weak verbs (taking their endings) but also changes
+                  the root vowel like strong verbs. Example:{" "}
+                  <em>denken (to think) -&gt; ich dachte (in the past tense)</em>.
                 </li>
               </ul>
-              <h5>Стандартные окончания (для слабых глаголов):</h5>
+              <h5>Standard Endings (for weak verbs):</h5>
               <table>
                 <tbody>
                   <tr>
-                    <td>ich (я)</td>
+                    <td>ich (I)</td>
                     <td>-e</td>
                   </tr>
                   <tr>
-                    <td>du (ты)</td>
+                    <td>du (you)</td>
                     <td>-st</td>
                   </tr>
                   <tr>
-                    <td>er/sie/es (он/она/оно)</td>
+                    <td>er/sie/es (he/she/it)</td>
                     <td>-t</td>
                   </tr>
                   <tr>
-                    <td>wir (мы)</td>
+                    <td>wir (we)</td>
                     <td>-en</td>
                   </tr>
                   <tr>
-                    <td>ihr (вы, мн.ч.)</td>
+                    <td>ihr (you, pl.)</td>
                     <td>-t</td>
                   </tr>
                   <tr>
-                    <td>sie/Sie (они/Вы)</td>
+                    <td>sie/Sie (they/You)</td>
                     <td>-en</td>
                   </tr>
                 </tbody>
               </table>
               <p>
-                Этот тренажер поможет вам отработать и запомнить формы самых
-                важных глаголов.
+                This trainer will help you practice and memorize the forms of the most
+                important verbs.
               </p>
             </div>
           )}

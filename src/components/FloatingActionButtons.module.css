@@ -1,0 +1,48 @@
+.fabRoot {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+}
+
+.fabContainer {
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    pointer-events: all;
+}
+
+.fabButton {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    color: var(--white);
+    border: none;
+    cursor: pointer;
+}
+
+.speakFab {
+    background-color: var(--purple-500);
+}
+
+.geminiFab {
+    background-color: var(--blue-600);
+}
+
+.geminiFab svg {
+    width: 26px;
+    height: 26px;
+}
+
+.fabButton:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+    opacity: 1;
+}

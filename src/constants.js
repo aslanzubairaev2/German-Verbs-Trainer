@@ -1,39 +1,39 @@
-// Константы для тренажёра немецких глаголов
+// Constants for the German Verbs Trainer
 
-// Список местоимений с русским переводом и базовым ключом
+// List of pronouns with English translation and base key
 export const pronouns = [
-  { german: "ich", russian: "я", base: "ich" },
-  { german: "du", russian: "ты", base: "du" },
-  { german: "er/sie/es", russian: "он/она/оно", base: "er" },
-  { german: "wir", russian: "мы", base: "wir" },
-  { german: "ihr", russian: "вы (мн.ч.)", base: "ihr" },
-  { german: "sie/Sie", russian: "они/Вы", base: "sie" },
+  { german: "ich", english: "I", base: "ich" },
+  { german: "du", english: "you (singular, informal)", base: "du" },
+  { german: "er/sie/es", english: "he/she/it", base: "er" },
+  { german: "wir", english: "we", base: "wir" },
+  { german: "ihr", english: "you (plural, informal)", base: "ihr" },
+  { german: "sie/Sie", english: "they/You (formal)", base: "sie" },
 ];
 
-// Порядок уровней сложности
+// Order of difficulty levels
 export const LEVEL_ORDER = ["A1", "A2", "B1", "B2"];
 
-// Требования для перехода на следующий уровень
+// Requirements for leveling up
 export const LEVEL_UP_REQUIREMENTS = { correctAnswers: 25, accuracy: 0.8 };
 
-// Возвращает человекочитаемое название типа глагола
+// Returns a human-readable label for the verb type
 export function getVerbTypeLabel(type) {
   switch (type) {
     case "weak":
-      return "Слабый глагол";
+      return "Weak verb";
     case "strong":
-      return "Сильный глагол";
+      return "Strong verb";
     case "mixed":
-      return "Смешанный глагол";
+      return "Mixed verb";
     case "modal":
-      return "Модальный глагол";
+      return "Modal verb";
     case "irregular":
-      return "Неправильный глагол";
+      return "Irregular verb";
     case "separable":
-      return "Отделяемый глагол";
+      return "Separable verb";
     case "regular":
-      return "Правильный глагол";
+      return "Regular verb";
     default:
-      return "Тип не указан";
+      return "Type not specified";
   }
 }

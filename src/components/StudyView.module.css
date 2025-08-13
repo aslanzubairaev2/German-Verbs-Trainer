@@ -1,0 +1,78 @@
+.studyViewToggle {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.studyViewToggle button {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    border: 2px solid transparent;
+    background: transparent;
+    cursor: pointer;
+}
+
+.studyViewToggle button.active {
+    color: var(--blue-600);
+    background-color: var(--blue-50);
+}
+
+.studyViewToggle button:not(.active):hover {
+    background-color: var(--gray-100);
+}
+
+.tableContainer {
+    background-color: white;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.tableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tableContainer td {
+    border: 1px solid #fff;
+    padding: 0.5rem;
+}
+
+.speakCell {
+    text-align: center;
+    width: 48px;
+}
+
+.speakCell button {
+    padding: 0.25rem;
+    color: var(--gray-500);
+}
+
+.pronounCell {
+    font-weight: 500;
+}
+
+.pronounRussian {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    margin-left: 0.5rem;
+}
+
+@media (max-width: 640px) {
+    .pronounRussian {
+        display: none;
+    }
+}
+
+.verbFormCell {
+    font-weight: 700;
+    color: var(--blue-600);
+}
+
+.verbFormCell div {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}

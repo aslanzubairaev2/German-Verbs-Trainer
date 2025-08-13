@@ -1,7 +1,7 @@
-// Минимальный CurriculumEngine для A1
-// - Хранит прогресс в localStorage
-// - Выдаёт следующую тему (topic) и уровень (level)
-// - Принимает результат выполнения задания и регистрирует сгенерированные фразы
+// Minimal CurriculumEngine for A1
+// - Stores progress in localStorage
+// - Provides the next topic and level
+// - Accepts the result of a task and registers generated phrases
 
 const LS_KEY = "curriculumProgressV1";
 
@@ -11,7 +11,7 @@ const INITIAL_PROGRESS = {
   level: "A1",
   topicIndex: 0,
   stats: {}, // topicId: { correct, total }
-  recent: [], // последние показанные фразы (german), для анти-повторов
+  recent: [], // last shown phrases (german), for anti-repetition
 };
 
 export function getUserProgress() {
@@ -38,7 +38,7 @@ export function resetProgress() {
 export function getNextTask() {
   const progress = getUserProgress();
   const topic = PLAN_A1[progress.topicIndex % PLAN_A1.length];
-  const avoid = (progress.recent || []).slice(-8); // до 8 последних
+  const avoid = (progress.recent || []).slice(-8); // up to the last 8
   return {
     taskId: Date.now(),
     level: progress.level,
@@ -69,7 +69,7 @@ export function registerGeneratedPhrase(german) {
   const progress = getUserProgress();
   const arr = Array.isArray(progress.recent) ? progress.recent : [];
   arr.push(german);
-  // Держим последние 12
+  // Keep the last 12
   progress.recent = arr.slice(-12);
   saveUserProgress(progress);
 }
