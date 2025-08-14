@@ -25,7 +25,7 @@ import {
   Home,
   Mic,
 } from "lucide-react";
-import { allVerbs } from "./verbsData.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
+import { allVerbs } from "./data/verbs.js"; // <-- ВАШ ФАЙЛ С ГЛАГОЛАМИ ПОДКЛЮЧЕН ЗДЕСЬ
 import VerbListModal from "./components/VerbListModal.js";
 import { loadUserVerbs } from "./storage/userVerbs";
 import SettingsModal from "./components/SettingsModal.js";
@@ -34,11 +34,11 @@ import GeminiChatModal from "./components/GeminiChatModal.js";
 import LevelUpToast from "./components/LevelUpToast.js";
 import VerbFormsDisplay from "./components/VerbFormsDisplay.js";
 import {
-  pronouns,
   LEVEL_ORDER,
   LEVEL_UP_REQUIREMENTS,
   getVerbTypeLabel,
 } from "./constants";
+import { PRONOUNS as pronouns } from "./data/pronouns";
 import { fetchGeminiInfo, fetchVerbForms } from "./api/gemini";
 import StartScreen from "./components/StartScreen";
 import PracticeBox from "./components/PracticeBox";
