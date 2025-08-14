@@ -1,31 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import useSpeechSynthesis from "../hooks/useSpeechSynthesis";
 import ReactMarkdown from "react-markdown";
-import { fetchLocalPhrase } from "../api/phrases";
 import { generateSimilarPhrase } from "../api/gemini";
-import { generateCurriculumPhrase } from "../api/gemini";
 import {
-  getNextTask,
-  submitResult,
-  registerGeneratedPhrase,
-} from "../curriculum/engine";
+  selectNextPhrase,
+  handleUnderstood,
+  handleNewExample,
+} from "../services/phraseManager";
 import GeminiChatModal from "./GeminiChatModal";
 import InteractivePhrase from "./InteractivePhrase";
 import CardPhrase from "./CardPhrase";
-import { Sparkles, Volume2, ChevronLeft, HelpCircle, X } from "lucide-react";
+import PhraseSettingsModal from "./PhraseSettingsModal";
+import {
+  Sparkles,
+  Volume2,
+  ChevronLeft,
+  HelpCircle,
+  X,
+  Settings,
+} from "lucide-react";
 
 /**
  * Компонент для тренировки немецких фраз из локального файла
  */
-function PhraseTrainer({
-  onBackToMain,
-  curriculumMode = false,
-  onNavigateToVerb,
-}) {
+function PhraseTrainer({ onBackToMain, onNavigateToVerb }) {
   const [loading, setLoading] = useState(false);
   const [phrase, setPhrase] = useState(null);
   const [error, setError] = useState(null);
-  const [selectedType, setSelectedType] = useState("all");
   const [generatingSimilar, setGeneratingSimilar] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const { speak, isSpeaking } = useSpeechSynthesis();
@@ -34,6 +35,8 @@ function PhraseTrainer({
   const [showChatModal, setShowChatModal] = useState(false);
   const [initialChatMessage, setInitialChatMessage] = useState("");
   const [currentPhraseId, setCurrentPhraseId] = useState(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settings, setSettings] = useState({}); // TODO: Load from localStorage
   const [quotedPhrases, setQuotedPhrases] = useState([]);
   const cardRef = useRef(null);
 
@@ -50,7 +53,6 @@ function PhraseTrainer({
   const [deWordInfo, setDeWordInfo] = useState(null);
 
   // Состояние для режима обучения
-  const [curriculumTask, setCurriculumTask] = useState(null);
 
   // Функция для извлечения немецкого инфинитива из текста
   const extractInfinitive = (text) => {
@@ -97,67 +99,41 @@ function PhraseTrainer({
   // Функция озвучивания теперь из хука useSpeechSynthesis
 
   // Получение фразы
-  const fetchPhrase = async () => {
+  const fetchPhrase = () => {
     setLoading(true);
-    setPhrase(null);
     setError(null);
     setIsFlipped(false);
-
-    setCurrentPhraseId(null);
     setShowChatModal(false);
 
-    try {
-      if (curriculumMode) {
-        const task = getNextTask();
-        setCurriculumTask(task);
-        const data = await generateCurriculumPhrase({
-          level: task.level,
-          topic: task.topic,
-          constraints: task.constraints,
-        });
-        setPhrase(data);
-        setError(null);
-        setCurrentPhraseId(`${data.german}-${data.russian}`);
-        // Регистрация для анти-повторов
-        if (data?.german) registerGeneratedPhrase(data.german);
+    // Небольшая задержка для плавности
+    setTimeout(() => {
+      const nextPhrase = selectNextPhrase(settings);
+      if (nextPhrase) {
+        setPhrase(nextPhrase);
+        setCurrentPhraseId(nextPhrase.id);
       } else {
-        const filterType = selectedType === "all" ? null : selectedType;
-        await fetchLocalPhrase({
-          setter: ({ loading, data, error }) => {
-            setLoading(!!loading);
-            setPhrase(data);
-            setError(error);
-            if (data) setCurrentPhraseId(`${data.german}-${data.russian}`);
-          },
-          filterType,
-        });
-        return;
+        setError("Все фразы пройдены! Сбросьте прогресс в настройках.");
+        setPhrase(null);
       }
-    } catch (e) {
-      setError("Не удалось получить фразу");
-    } finally {
       setLoading(false);
-    }
+    }, 200);
   };
 
   // Автоматическая загрузка фразы при монтировании компонента
   useEffect(() => {
     fetchPhrase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [curriculumMode, selectedType]);
+  }, []);
 
-  // Обработка успех/повтор для режима программы
-  const handleCurriculumRight = () => {
-    if (!curriculumMode || !curriculumTask) return;
-    submitResult(
-      { taskId: Date.now(), topic: curriculumTask.topic },
-      { isCorrect: true }
-    );
+  const onUnderstood = () => {
+    if (!phrase) return;
+    handleUnderstood(phrase.id);
     fetchPhrase();
   };
-  const handleCurriculumWrong = () => {
-    if (!curriculumMode || !curriculumTask) return;
-    // «Ещё пример» — без записи результата, просто новый пример
+
+  const onNewExample = () => {
+    if (!phrase) return;
+    handleNewExample(phrase.id);
     fetchPhrase();
   };
 
@@ -253,8 +229,7 @@ function PhraseTrainer({
     const threshold = 100; // Минимальное расстояние для свайпа
 
     if (Math.abs(swipeOffset) > threshold) {
-      // В режиме программы свайп не влияет на прогресс — только «Понятно» кнопкой
-      fetchPhrase();
+      onNewExample();
     }
 
     // Сбрасываем состояние
@@ -288,21 +263,12 @@ function PhraseTrainer({
     const threshold = 100;
 
     if (Math.abs(swipeOffset) > threshold) {
-      fetchPhrase();
+      onNewExample();
     }
 
     setSwipeOffset(0);
     setIsSwiping(false);
   };
-
-  const phraseTypes = [
-    { value: "all", label: "Все фразы" },
-    { value: "present", label: "Настоящее время" },
-    { value: "past", label: "Прошедшее время" },
-    { value: "future", label: "Будущее время" },
-    { value: "question", label: "Вопросы" },
-    { value: "negative", label: "Отрицания" },
-  ];
 
   // Функция закрытия чата
   const closeChatModal = () => {
@@ -504,53 +470,28 @@ function PhraseTrainer({
         >
           Тренировка фраз
         </h2>
-      </div>
-
-      {/* Фильтр по типам */}
-      <div
-        style={{
-          marginBottom: "1.5rem",
-          display: "flex",
-          gap: "0.5rem",
-          justifyContent: "flex-start",
-          overflowX: "auto",
-          paddingBottom: "0.5rem",
-          scrollbarWidth: "none",
-          msOverflowStyle: "none",
-        }}
-      >
-        {phraseTypes.map((type) => (
-          <button
-            key={type.value}
-            onClick={() => {
-              setSelectedType(type.value);
-              // Автоматически загружаем новую фразу при смене типа
-              setTimeout(() => fetchPhrase(), 100);
-            }}
-            style={{
-              padding: "0.5rem 1rem",
-              fontSize: "0.9rem",
-              borderRadius: "0.5rem",
-              background:
-                selectedType === type.value
-                  ? "linear-gradient(90deg, #fbbf24 0%, #ef4444 100%)"
-                  : "#f1f5f9",
-              color: selectedType === type.value ? "#fff" : "#475569",
-              border: "none",
-              fontWeight: 500,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow:
-                selectedType === type.value
-                  ? "0 2px 8px rgba(251, 191, 36, 0.3)"
-                  : "none",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            {type.label}
-          </button>
-        ))}
+        <button
+          onClick={() => setShowSettingsModal(true)}
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "0.5rem",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "#64748b",
+            transition: "all 0.2s ease",
+          }}
+          title="Настройки"
+        >
+          <Settings size={24} />
+        </button>
       </div>
 
       {/* Переворачивающаяся карточка */}
@@ -999,8 +940,8 @@ function PhraseTrainer({
         </div>
       ) : null}
 
-      {/* Кнопки контроля прогресса — только в режиме программы */}
-      {curriculumMode && phrase && !loading && !generatingSimilar && (
+      {/* Кнопки контроля прогресса */}
+      {phrase && !loading && !generatingSimilar && (
         <div
           style={{
             marginTop: "1rem",
@@ -1010,7 +951,7 @@ function PhraseTrainer({
           }}
         >
           <button
-            onClick={handleCurriculumWrong}
+            onClick={onNewExample}
             style={{
               padding: "0.5rem 0.9rem",
               borderRadius: 8,
@@ -1018,10 +959,10 @@ function PhraseTrainer({
               color: "#334155",
             }}
           >
-            Ещё пример
+            Новый пример
           </button>
           <button
-            onClick={handleCurriculumRight}
+            onClick={onUnderstood}
             style={{
               padding: "0.5rem 0.9rem",
               borderRadius: 8,
@@ -1047,22 +988,6 @@ function PhraseTrainer({
           }}
         >
           {error}
-        </div>
-      )}
-
-      {/* Информация о выбранном типе */}
-      {selectedType !== "all" && (
-        <div
-          style={{
-            marginTop: "1rem",
-            fontSize: "0.9rem",
-            color: "#64748b",
-          }}
-        >
-          Показываю фразы типа:{" "}
-          <strong>
-            {phraseTypes.find((t) => t.value === selectedType)?.label}
-          </strong>
         </div>
       )}
 
@@ -1151,6 +1076,20 @@ function PhraseTrainer({
         initialMessage={initialChatMessage}
         onClose={closeChatModal}
         phraseId={currentPhraseId}
+      />
+
+      <PhraseSettingsModal
+        show={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onSave={(newSettings) => {
+          localStorage.setItem(
+            "phraseTrainerSettings",
+            JSON.stringify(newSettings)
+          );
+          setSettings(newSettings);
+          // Refetch phrase with new settings
+          fetchPhrase();
+        }}
       />
 
       {/* Модалка для перевода слова */}
